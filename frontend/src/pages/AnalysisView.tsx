@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, BarChart2, Share2, Activity, Zap, Clock, AlertTriangle, CheckCircle, Download } from 'lucide-react'
+import { ArrowLeft, BarChart2, Share2, Activity, Zap, Clock, AlertTriangle, CheckCircle, Download, FileText, FileJson } from 'lucide-react'
 import api from '../services/api'
 import MonitoringDashboard from '../components/MonitoringDashboard'
 import CrashingAnalysis from '../components/CrashingAnalysis'
@@ -37,10 +37,23 @@ export default function AnalysisView() {
   const [activeTab, setActiveTab] = useState('analysis')
   const [projectMethod, setProjectMethod] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   useEffect(() => {
     performAnalysis()
   }, [id])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showExportMenu && !target.closest('.export-menu-container')) {
+        setShowExportMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showExportMenu])
 
   const performAnalysis = async () => {
     try {
@@ -80,22 +93,24 @@ export default function AnalysisView() {
     }
   }
 
-  const exportAnalysis = async () => {
+  const exportAnalysis = async (format: 'json' | 'pdf') => {
     setExporting(true)
+    setShowExportMenu(false)
     try {
-      const response = await api.get(`/projects/${id}/export`, {
+      const response = await api.get(`/projects/${id}/export?format=${format}`, {
         responseType: 'blob'
       })
       
-      // Create blob and download
-      const blob = new Blob([response.data], { type: 'application/json' })
+      // response.data is already a blob when responseType is 'blob'
+      const blob = response.data
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-      link.download = `project_analysis_${timestamp}.json`
+      const extension = format === 'pdf' ? 'pdf' : 'json'
+      link.download = `project_analysis_${timestamp}.${extension}`
       
       document.body.appendChild(link)
       link.click()
@@ -149,14 +164,37 @@ export default function AnalysisView() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-secondary-900 tracking-tight">Project Analysis Results</h1>
           <div className="flex items-center gap-3">
-            <button
-              onClick={exportAnalysis}
-              disabled={exporting}
-              className="btn-secondary flex items-center gap-2 shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              {exporting ? 'Exporting...' : 'Export Analysis'}
-            </button>
+            <div className="relative export-menu-container">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={exporting}
+                className="btn-secondary flex items-center gap-2 shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Exporting...' : 'Export Analysis'}
+              </button>
+              
+              {showExportMenu && !exporting && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-secondary-200 z-50">
+                  <div className="py-1">
+                    <button
+                      onClick={() => exportAnalysis('pdf')}
+                      className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 transition-colors"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Export as PDF
+                    </button>
+                    <button
+                      onClick={() => exportAnalysis('json')}
+                      className="w-full px-4 py-2 text-left text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 transition-colors"
+                    >
+                      <FileJson className="w-4 h-4" />
+                      Export as JSON
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="text-sm text-secondary-500 bg-secondary-50 px-3 py-1.5 rounded-lg border border-secondary-200">
               Method: <span className="font-semibold text-secondary-900">{projectMethod}</span>
             </div>
