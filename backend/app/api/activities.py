@@ -2,15 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.models import Project, Activity
+from app.models.models import Project, Activity, User
 from app.schemas.schemas import Activity as ActivitySchema, ActivityCreate
+from app.auth import get_current_user
 
 router = APIRouter()
 
 @router.get("/{project_id}/activities", response_model=List[ActivitySchema])
-async def get_activities(project_id: str, db: Session = Depends(get_db)):
+async def get_activities(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get all activities for a project"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -21,10 +29,14 @@ async def get_activities(project_id: str, db: Session = Depends(get_db)):
 async def create_activity(
     project_id: str, 
     activity: ActivityCreate, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new activity for a project"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -60,9 +72,18 @@ async def update_activity(
     project_id: str,
     activity_id: str,
     activity_update: ActivityCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Update an activity"""
+    # Verify project ownership
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
     db_activity = db.query(Activity).filter(
         Activity.projectId == project_id,
         Activity.id == activity_id
@@ -89,9 +110,17 @@ async def update_activity(
 async def delete_activity(
     project_id: str,
     activity_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Delete an activity"""
+    # Verify project ownership
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     db_activity = db.query(Activity).filter(
         Activity.projectId == project_id,
         Activity.id == activity_id

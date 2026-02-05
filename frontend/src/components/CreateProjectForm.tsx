@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { addGuestProject } from '../utils/guestStorage'
 
 interface CreateProjectProps {
   onProjectCreated: () => void
@@ -13,6 +15,7 @@ export default function CreateProjectForm({ onProjectCreated }: CreateProjectPro
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const { isAuthenticated } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +23,20 @@ export default function CreateProjectForm({ onProjectCreated }: CreateProjectPro
     setError('')
 
     try {
-      await api.post('/projects', formData)
+      if (!isAuthenticated) {
+        const now = new Date().toISOString()
+        const id = `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        addGuestProject({
+          id,
+          name: formData.name,
+          method: formData.method,
+          timeUnit: formData.timeUnit,
+          createdAt: now,
+          updatedAt: now
+        })
+      } else {
+        await api.post('/projects', formData)
+      }
       onProjectCreated()
       setFormData({ name: '', method: 'CPM', timeUnit: 'days' })
     } catch (err) {

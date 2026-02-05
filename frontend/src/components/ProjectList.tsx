@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { deleteGuestProject, getGuestProjects } from '../utils/guestStorage'
 
 interface Project {
   id: string
@@ -13,10 +15,16 @@ interface Project {
 export default function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
-    fetchProjects()
-  }, [])
+    if (isAuthenticated) {
+      fetchProjects()
+    } else {
+      setProjects(getGuestProjects() as any)
+      setLoading(false)
+    }
+  }, [isAuthenticated])
 
   const fetchProjects = async () => {
     try {
@@ -24,6 +32,7 @@ export default function ProjectList() {
       setProjects(response.data)
     } catch (error) {
       console.error('Failed to fetch projects:', error)
+      setProjects([])
     } finally {
       setLoading(false)
     }
@@ -33,7 +42,11 @@ export default function ProjectList() {
     if (!window.confirm('Are you sure you want to delete this project?')) return
 
     try {
-      await api.delete(`/projects/${projectId}`)
+      if (isAuthenticated) {
+        await api.delete(`/projects/${projectId}`)
+      } else {
+        deleteGuestProject(projectId)
+      }
       setProjects(projects.filter(p => p.id !== projectId))
     } catch (error) {
       console.error('Failed to delete project:', error)
@@ -70,6 +83,11 @@ export default function ProjectList() {
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
                 {project.method}
               </span>
+              {!isAuthenticated && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-700">
+                  Guest
+                </span>
+              )}
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-700">
                 {project.timeUnit}
               </span>

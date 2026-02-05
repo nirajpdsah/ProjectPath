@@ -21,6 +21,7 @@ interface Activity {
 interface NetworkDiagramProps {
   projectId: string
   criticalPath: string[]
+  analysisData?: any
 }
 
 interface Node {
@@ -33,7 +34,7 @@ interface Node {
   label?: string
 }
 
-export default function NetworkDiagram({ projectId, criticalPath }: NetworkDiagramProps) {
+export default function NetworkDiagram({ projectId, criticalPath, analysisData }: NetworkDiagramProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [nodes, setNodes] = useState<Node[]>([])
@@ -45,7 +46,7 @@ export default function NetworkDiagram({ projectId, criticalPath }: NetworkDiagr
 
   useEffect(() => {
     fetchActivities()
-  }, [projectId])
+  }, [projectId, analysisData])
 
   useEffect(() => {
     if (activities.length > 0) {
@@ -61,23 +62,34 @@ export default function NetworkDiagram({ projectId, criticalPath }: NetworkDiagr
 
   const fetchActivities = async () => {
     try {
-      const response = await api.get(`/projects/${projectId}/activities`)
-      const analysisResponse = await api.get(`/projects/${projectId}/analyze`)
-
-      // Merge activity data with analysis results
-      const activitiesWithAnalysis = response.data.map((activity: any) => {
-        const analysisData = analysisResponse.data.activities.find(
-          (a: any) => a.activityId === activity.activityId
-        )
-        return {
+      if (analysisData) {
+        // Guest mode - use provided analysis data
+        const activitiesWithAnalysis = analysisData.activities.map((activity: any) => ({
           ...activity,
-          ...analysisData,
           duration: activity.duration ||
             ((activity.optimistic + 4 * activity.mostLikely + activity.pessimistic) / 6)
-        }
-      })
+        }))
+        setActivities(activitiesWithAnalysis)
+      } else {
+        // Authenticated mode - fetch from API
+        const response = await api.get(`/projects/${projectId}/activities`)
+        const analysisResponse = await api.get(`/projects/${projectId}/analyze`)
 
-      setActivities(activitiesWithAnalysis)
+        // Merge activity data with analysis results
+        const activitiesWithAnalysis = response.data.map((activity: any) => {
+          const analysisDataItem = analysisResponse.data.activities.find(
+            (a: any) => a.activityId === activity.activityId
+          )
+          return {
+            ...activity,
+            ...analysisDataItem,
+            duration: activity.duration ||
+              ((activity.optimistic + 4 * activity.mostLikely + activity.pessimistic) / 6)
+          }
+        })
+
+        setActivities(activitiesWithAnalysis)
+      }
     } catch (error) {
       console.error('Failed to fetch activities:', error)
     }

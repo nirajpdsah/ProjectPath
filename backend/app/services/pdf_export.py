@@ -9,6 +9,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from io import BytesIO
 from datetime import datetime
 from typing import Dict, List, Any
+from app.services.network_diagram import generate_network_diagram
 
 
 class PDFExporter:
@@ -58,9 +59,9 @@ class PDFExporter:
             fontName='Helvetica-Bold'
         ))
         
-        # Body text
+        # Body text - use custom name to avoid conflicts
         self.styles.add(ParagraphStyle(
-            name='BodyText',
+            name='CustomBody',
             parent=self.styles['Normal'],
             fontSize=10,
             textColor=colors.HexColor('#1f2937'),
@@ -70,7 +71,7 @@ class PDFExporter:
         
         # Metadata style
         self.styles.add(ParagraphStyle(
-            name='Metadata',
+            name='CustomMetadata',
             parent=self.styles['Normal'],
             fontSize=9,
             textColor=colors.HexColor('#6b7280'),
@@ -101,6 +102,10 @@ class PDFExporter:
         
         # Problem Definition
         story.extend(self._create_problem_section(export_data['problem'], export_data['metadata']))
+        story.append(PageBreak())
+        
+        # Network Diagram
+        story.extend(self._create_network_diagram_section(export_data['problem'], export_data['solution']))
         story.append(PageBreak())
         
         # Solution Analysis
@@ -143,11 +148,11 @@ class PDFExporter:
         
         # Metadata box
         metadata_data = [
-            ['Project ID:', metadata['projectId']],
+            ['Project ID:', metadata.get('projectId', 'N/A')],
             ['Method:', metadata['method']],
             ['Time Unit:', metadata['timeUnit']],
             ['Export Date:', datetime.fromisoformat(metadata['exportDate']).strftime('%B %d, %Y at %H:%M:%S')],
-            ['Created:', datetime.fromisoformat(metadata['createdAt']).strftime('%B %d, %Y')],
+            ['Created:', datetime.fromisoformat(metadata.get('createdAt', metadata['exportDate'])).strftime('%B %d, %Y')],
         ]
         
         metadata_table = Table(metadata_data, colWidths=[2*inch, 4*inch])
@@ -183,16 +188,18 @@ class PDFExporter:
             "   1.1 Project Overview",
             "   1.2 Activities",
             "   1.3 Analysis Objectives",
-            "2. Solution Analysis",
-            "   2.1 Project Summary",
-            "   2.2 Critical Path",
-            "   2.3 Activity Schedule",
-            "   2.4 Statistical Analysis",
-            "   2.5 Crashing Analysis (if available)",
+            "2. Network Diagram",
+            "   2.1 Activity-on-Node (AON) Diagram",
+            "3. Solution Analysis",
+            "   3.1 Project Summary",
+            "   3.2 Critical Path",
+            "   3.3 Activity Schedule",
+            "   3.4 Statistical Analysis",
+            "   3.5 Crashing Analysis (if available)",
         ]
         
         for item in toc_items:
-            p = Paragraph(item, self.styles['BodyText'])
+            p = Paragraph(item, self.styles['CustomBody'])
             elements.append(p)
         
         return elements
@@ -212,7 +219,7 @@ class PDFExporter:
         project activities. The analysis determines the critical path, calculates activity slack times,
         and provides insights for project management decisions. Time measurements are in <b>{metadata['timeUnit']}</b>.
         """
-        elements.append(Paragraph(overview_text, self.styles['BodyText']))
+        elements.append(Paragraph(overview_text, self.styles['CustomBody']))
         elements.append(Spacer(1, 0.1*inch))
         
         # Activities
@@ -285,8 +292,83 @@ class PDFExporter:
         # Objectives
         elements.append(Paragraph("1.3 Analysis Objectives", self.styles['SubSection']))
         for objective in problem['objectives']:
-            bullet = Paragraph(f"• {objective}", self.styles['BodyText'])
+            bullet = Paragraph(f"• {objective}", self.styles['CustomBody'])
             elements.append(bullet)
+        
+        return elements
+    
+    def _create_network_diagram_section(self, problem: Dict, solution: Dict) -> List:
+        """Create network diagram section"""
+        elements = []
+        
+        # Section header
+        elements.append(Paragraph("2. NETWORK DIAGRAM", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Description
+        elements.append(Paragraph("2.1 Activity-on-Node (AON) Diagram", self.styles['SubSection']))
+        description = """
+        The network diagram below visualizes the project structure, showing the relationships 
+        between activities and the critical path. Critical activities are highlighted in red, 
+        while non-critical activities are shown in blue. Each node displays the activity ID, 
+        duration, and timing information (ES, EF, LS, LF).
+        """
+        elements.append(Paragraph(description, self.styles['CustomBody']))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        try:
+            # Merge problem activities with solution data to get complete information
+            merged_activities = []
+            for prob_act in problem['activities']:
+                # Find matching activity in solution
+                sol_act = next((a for a in solution['activities'] if a['activityId'] == prob_act['activityId']), None)
+                if sol_act:
+                    # Merge both dictionaries
+                    merged = {**prob_act, **sol_act}
+                    merged_activities.append(merged)
+                else:
+                    merged_activities.append(prob_act)
+            
+            # Generate network diagram with complete data
+            diagram_buffer = generate_network_diagram(
+                merged_activities,
+                solution['criticalPath'],
+                diagram_type='aon'
+            )
+            
+            # Create image from buffer
+            img = RLImage(diagram_buffer, width=6.5*inch, height=4.5*inch)
+            img.hAlign = 'CENTER'
+            elements.append(img)
+            elements.append(Spacer(1, 0.1*inch))
+            
+            # Add caption
+            caption = Paragraph(
+                "<i>Figure 1: Activity-on-Node Network Diagram showing project structure and critical path</i>",
+                ParagraphStyle(
+                    'Caption',
+                    parent=self.styles['Normal'],
+                    fontSize=9,
+                    textColor=colors.HexColor('#6b7280'),
+                    alignment=TA_CENTER,
+                    spaceAfter=6
+                )
+            )
+            elements.append(caption)
+            
+        except Exception as e:
+            # If diagram generation fails, show error message
+            error_text = Paragraph(
+                f"<i>Network diagram could not be generated: {str(e)}</i>",
+                ParagraphStyle(
+                    'Error',
+                    parent=self.styles['Normal'],
+                    fontSize=10,
+                    textColor=colors.HexColor('#DC2626'),
+                    alignment=TA_CENTER
+                )
+            )
+            elements.append(error_text)
         
         return elements
     
@@ -295,11 +377,11 @@ class PDFExporter:
         elements = []
         
         # Section header
-        elements.append(Paragraph("2. SOLUTION ANALYSIS", self.styles['SectionHeader']))
+        elements.append(Paragraph("3. SOLUTION ANALYSIS", self.styles['SectionHeader']))
         elements.append(Spacer(1, 0.15*inch))
         
         # Project Summary
-        elements.append(Paragraph("2.1 Project Summary", self.styles['SubSection']))
+        elements.append(Paragraph("3.1 Project Summary", self.styles['SubSection']))
         
         summary_data = [
             ['Metric', 'Value'],
@@ -339,14 +421,14 @@ class PDFExporter:
         elements.append(Spacer(1, 0.2*inch))
         
         # Critical Path
-        elements.append(Paragraph("2.2 Critical Path", self.styles['SubSection']))
+        elements.append(Paragraph("3.2 Critical Path", self.styles['SubSection']))
         critical_path_text = " → ".join(solution['criticalPath'])
         
         cp_box = Paragraph(
             f"<b>{critical_path_text}</b>",
             ParagraphStyle(
                 'CriticalPath',
-                parent=self.styles['BodyText'],
+                parent=self.styles['CustomBody'],
                 fontSize=11,
                 textColor=colors.HexColor('#dc2626'),
                 alignment=TA_CENTER,
@@ -361,7 +443,7 @@ class PDFExporter:
         elements.append(Spacer(1, 0.2*inch))
         
         # Activity Schedule
-        elements.append(Paragraph("2.3 Activity Schedule", self.styles['SubSection']))
+        elements.append(Paragraph("3.3 Activity Schedule", self.styles['SubSection']))
         elements.append(Spacer(1, 0.1*inch))
         
         schedule_headers = [['Activity', 'ES', 'EF', 'LS', 'LF', 'Slack', 'Status']]
@@ -420,7 +502,7 @@ class PDFExporter:
         
         # Statistical Analysis (for PERT)
         if solution['projectVariance']:
-            elements.append(Paragraph("2.4 Statistical Analysis", self.styles['SubSection']))
+            elements.append(Paragraph("3.4 Statistical Analysis", self.styles['SubSection']))
             stats_text = f"""
             <b>Variance:</b> {solution['projectVariance']:.3f}<br/>
             <b>Standard Deviation:</b> {solution['analysis']['standardDeviation']:.3f}<br/>
@@ -429,16 +511,16 @@ class PDFExporter:
             {solution['analysis']['standardDeviation']:.2f} {metadata['timeUnit']} suggests the expected 
             variation from the mean project duration.
             """
-            elements.append(Paragraph(stats_text, self.styles['BodyText']))
+            elements.append(Paragraph(stats_text, self.styles['CustomBody']))
             elements.append(Spacer(1, 0.1*inch))
         
         # Crashing Analysis
         if 'crashing' in solution and solution['crashing']:
             elements.append(PageBreak())
-            elements.append(Paragraph("2.5 Crashing Analysis", self.styles['SubSection']))
+            elements.append(Paragraph("3.5 Crashing Analysis", self.styles['SubSection']))
             elements.append(Paragraph(
                 "Cost-time tradeoff analysis showing optimal crashing strategies:",
-                self.styles['BodyText']
+                self.styles['CustomBody']
             ))
             elements.append(Spacer(1, 0.1*inch))
             

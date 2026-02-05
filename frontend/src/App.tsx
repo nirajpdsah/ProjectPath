@@ -3,24 +3,35 @@ import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import ProjectEditor from './pages/ProjectEditor'
 import AnalysisView from './pages/AnalysisView'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
 import Navbar from './components/Navbar'
+import { AuthProvider } from './context/AuthContext'
 
-function App() {
+function AppRoutes() {
   return (
-    <Router>
-      <div className="min-h-screen bg-secondary-50 flex flex-col font-sans">
-        <Navbar />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/project/:id" element={<ProjectEditor />} />
-            <Route path="/project/:id/analysis" element={<AnalysisView />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <div className="min-h-screen bg-secondary-50 flex flex-col font-sans">
+      <Navbar />
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/project/:id" element={<ProjectEditor />} />
+          <Route path="/project/:id/analysis" element={<AnalysisView />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
 
-export default App
+export default function AppWrapper() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
+  )
+}

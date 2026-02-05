@@ -1,195 +1,207 @@
-# ProjectPath - PERT/CPM Project Analyzer
+# ProjectPath - PERT/CPM Project Management Tool
 
-A modern web-based project management tool for analyzing projects using PERT (Program Evaluation and Review Technique) and CPM (Critical Path Method).
+A modern, full-featured project management application for analyzing complex project schedules using PERT (Program Evaluation and Review Technique) and CPM (Critical Path Method) methodologies.
 
 ## Features
 
-✅ **Project Setup** - Create projects with CPM or PERT methods
-✅ **Activity Input** - Define activities with durations and dependencies
-✅ **Automatic Calculations** - ES, EF, LS, LF, slack, critical path
-✅ **Network Visualization** - Interactive project network diagrams
-✅ **Timeline/Gantt Chart** - Visual project timeline
-✅ **Critical Path Analysis** - Identify longest paths and bottlenecks
-✅ **Probability Analysis** - PERT-based completion probability
-✅ **Slack Analysis** - Identify schedule flexibility
-✅ **Scenario Simulation** - Test what-if scenarios
-✅ **Import/Export** - CSV, Excel, JSON, PDF support
+### Core Analysis
+- **PERT Analysis** - Three-point estimation (optimistic, most likely, pessimistic)
+- **CPM Analysis** - Single-point duration estimation
+- **Network Diagrams** - Visual representation of project activities and dependencies
+- **Critical Path Identification** - Automatic detection of critical activities
+- **Probability Analysis** - Calculate project completion probabilities
+- **Crashing Analysis** - Optimize project duration with cost considerations
+- **Monitoring Dashboard** - Real-time project progress tracking
+
+### Data Management
+- **Project Creation** - Support for both PERT and CPM methodologies
+- **Activity Management** - Add, edit, and delete activities with dependencies
+- **Bulk Import** - Import activities from various formats
+- **Data Export** - Export projects as PDF or JSON
+- **Cloud Sync** - Cross-device synchronization (with authentication)
+
+### Authentication & Access
+- **Optional Login** - Use with or without authentication
+- **Guest Mode** - Full feature access without account creation
+- **Persistent Storage** - Data persists locally (guest) or in cloud (authenticated)
+- **JWT-based Security** - Secure token-based authentication
 
 ## Tech Stack
 
-### Frontend
-- **React 18** - UI framework
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool
-- **Tailwind CSS** - Styling
-- **Recharts** - Visualizations
-- **React Router** - Navigation
-
 ### Backend
-- **FastAPI** - Python web framework
-- **SQLAlchemy** - ORM
-- **SQLite/PostgreSQL** - Database
-- **NumPy/SciPy** - Scientific computations
+- **Framework**: FastAPI (Python)
+- **Database**: SQLite (development) / PostgreSQL (production)
+- **Authentication**: JWT with bcrypt
+- **Analysis Engine**: Custom PERT/CPM algorithms
+- **Export**: PDF generation with ReportLab
+
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **State Management**: React Context API
+- **Network Visualization**: Cytoscape.js
+- **UI Components**: Responsive, accessible design
+
+## Installation
+
+### Prerequisites
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ProjectPath
+   ```
+
+2. **Backend Setup**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   python main.py
+   ```
+   Server runs on `http://localhost:8001`
+
+3. **Frontend Setup**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Application runs on `http://localhost:5173`
+
+## Quick Start
+
+### Using Guest Mode (No Account Required)
+1. Open the application at `http://localhost:5173`
+2. Click "Create Project"
+3. Add activities with dependencies
+4. Click "Analyze" to view network diagrams and results
+5. Export results as PDF or JSON
+
+### Using Authenticated Mode
+1. Click "Sign Up" to create an account
+2. Log in with your credentials
+3. Create and manage projects
+4. Your projects sync across devices
 
 ## Project Structure
 
 ```
 ProjectPath/
-├── frontend/                 # React frontend
-│   ├── src/
-│   │   ├── components/      # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── store/          # State management
-│   │   └── utils/          # Utilities
-│   └── package.json
-├── backend/                 # FastAPI backend
+├── backend/
 │   ├── app/
-│   │   ├── api/            # API routes
-│   │   ├── models/         # Database models
-│   │   ├── schemas/        # Pydantic schemas
-│   │   └── services/       # Business logic
-│   ├── main.py
+│   │   ├── api/              # API endpoints
+│   │   │   ├── projects.py
+│   │   │   ├── activities.py
+│   │   │   ├── analysis.py
+│   │   │   └── auth.py
+│   │   ├── models/           # SQLAlchemy models
+│   │   ├── schemas/          # Pydantic schemas
+│   │   ├── services/         # Business logic
+│   │   ├── auth.py           # Authentication utilities
+│   │   └── database.py       # Database connection
+│   ├── main.py               # Application entry point
 │   └── requirements.txt
-└── README.md
+├── frontend/
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API client
+│   │   ├── utils/            # Utility functions
+│   │   └── store/            # State management
+│   ├── package.json
+│   └── vite.config.ts
+└── docker-compose.yml        # Docker configuration
 ```
-
-## Getting Started
-
-### Prerequisites
-- Node.js 16+ (for frontend)
-- Python 3.9+ (for backend)
-- npm or yarn (for frontend package management)
-
-### Backend Setup
-
-1. Install Python dependencies:
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-2. Run the backend server:
-```bash
-python main.py
-```
-
-The API will be available at `http://localhost:8000`
-API docs: `http://localhost:8000/docs`
-
-### Frontend Setup
-
-1. Install dependencies:
-```bash
-cd frontend
-npm install
-```
-
-2. Start the development server:
-```bash
-npm run dev
-```
-
-The app will be available at `http://localhost:3000`
 
 ## API Endpoints
 
-### Projects
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Create new project
-- `GET /api/projects/{id}` - Get project details
-- `PUT /api/projects/{id}` - Update project
-- `DELETE /api/projects/{id}` - Delete project
+### Authentication
+- `POST /auth/signup` - Create new account
+- `POST /auth/login` - User login
+
+### Projects (Authenticated)
+- `GET /projects` - List user projects
+- `POST /projects` - Create new project
+- `GET /projects/{id}` - Get project details
+- `PUT /projects/{id}` - Update project
+- `DELETE /projects/{id}` - Delete project
 
 ### Activities
-- `GET /api/projects/{id}/activities` - List activities
-- `POST /api/projects/{id}/activities` - Add activity
-- `PUT /api/projects/{id}/activities/{id}` - Update activity
-- `DELETE /api/projects/{id}/activities/{id}` - Delete activity
+- `POST /projects/{id}/activities` - Add activity
+- `GET /projects/{id}/activities` - List activities
+- `PUT /projects/{id}/activities/{activityId}` - Update activity
+- `DELETE /projects/{id}/activities/{activityId}` - Delete activity
 
 ### Analysis
-- `GET /api/projects/{id}/analyze` - Perform analysis
-- `POST /api/projects/{id}/probability` - Calculate completion probability
+- `GET /projects/{id}/analyze` - Perform PERT/CPM analysis
+- `GET /projects/{id}/crashing` - Crashing analysis
+- `GET /projects/{id}/export?format=pdf|json` - Export project
 
-## PERT/CPM Formulas
+### Guest Endpoints
+- `POST /projects/analyze-adhoc` - Analysis without persistence
+- `POST /projects/analyze-adhoc/crashing` - Guest crashing analysis
+- `POST /projects/export-adhoc` - Guest export
 
-### Expected Time (PERT)
-```
-t = (a + 4m + b) / 6
-where a = optimistic, m = most likely, b = pessimistic
-```
+## Usage Examples
 
-### Variance (PERT)
-```
-σ² = ((b - a) / 6)²
-```
-
-### Probability of Completion
-```
-Z = (Deadline - Expected Project Time) / √(Project Variance)
-P = Φ(Z)  [Standard Normal Distribution]
-```
-
-## Database Schema
-
-### Projects Table
-- id (UUID)
-- name (string)
-- method (CPM/PERT)
-- timeUnit (days/weeks/months)
-- createdAt (timestamp)
-- updatedAt (timestamp)
-
-### Activities Table
-- id (UUID)
-- projectId (FK)
-- activityId (string)
-- name (string)
-- predecessors (string)
-- duration (float)
-- optimistic, mostLikely, pessimistic (float)
-- cost, crashTime, crashCost (float)
-- ES, EF, LS, LF, slack (float)
-- isCritical (boolean)
-
-## Core Algorithms
-
-### Forward Pass
-Calculates earliest start (ES) and earliest finish (EF) for all activities using topological sort.
-
-### Backward Pass
-Calculates latest start (LS) and latest finish (LF) for all activities.
-
-### Slack Calculation
-```
-Slack = LS - ES = LF - EF
+### Create a PERT Project
+```javascript
+POST /projects
+{
+  "name": "Website Redesign",
+  "method": "PERT",
+  "timeUnit": "days"
+}
 ```
 
-### Critical Path Detection
-Activities with zero slack form the critical path.
+### Add an Activity
+```javascript
+POST /projects/{projectId}/activities
+{
+  "activityId": "A",
+  "name": "Requirements",
+  "optimistic": 2,
+  "mostLikely": 4,
+  "pessimistic": 8,
+  "predecessors": ""
+}
+```
 
-## Validation Rules
+### Run Analysis
+```javascript
+GET /projects/{projectId}/analyze
+```
 
-The system validates:
-- ✓ No cyclic dependencies (DAG validation)
-- ✓ All predecessors exist
-- ✓ No negative durations
-- ✓ Unique activity IDs per project
+## Configuration
 
-## Performance
+### Environment Variables
+Create a `.env` file in the backend directory:
 
-- Supports 1,000+ activities
-- Analysis computation < 1s
-- Network visualization < 2s render
+```env
+DATABASE_URL=sqlite:///./projectpath.db
+JWT_SECRET=your-secret-key-here
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=168
+```
 
-## Future Enhancements
+## Docker Deployment
 
-- 🔄 Resource leveling
-- 📊 Multi-project portfolio analysis
-- 🤖 AI schedule suggestions
-- 🎲 Monte Carlo simulation
-- 👥 Real-time collaboration
-- 📚 Classroom mode for instructors
+Build and run with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+- Frontend: `http://localhost`
+- Backend API: `http://localhost:8001`
 
 ## Development
 
@@ -199,24 +211,52 @@ cd backend
 pytest
 ```
 
-### Building for Production
-
-Frontend:
+### Code Formatting
 ```bash
-cd frontend
-npm run build
+# Backend
+black .
+flake8 .
+
+# Frontend
+npm run lint
+npm run format
 ```
 
-Backend: Deploy with Gunicorn/Uvicorn
+## Browser Support
+
+- Chrome/Edge 88+
+- Firefox 85+
+- Safari 14+
+
+## Performance Considerations
+
+- Network diagrams optimize rendering for projects up to 1000 activities
+- Analysis calculations use efficient algorithms suitable for real-time computation
+- Export generation typically takes <5 seconds for standard projects
+
+## Troubleshooting
+
+### Backend Connection Errors
+- Ensure backend is running: `python main.py` on port 8001
+- Check CORS settings in `main.py`
+
+### Database Issues
+- Delete `projectpath.db` to reset database
+- Ensure Python 3.8+ is installed
+
+### Frontend Build Issues
+- Clear node_modules: `rm -rf node_modules && npm install`
+- Clear Vite cache: `rm -rf .venv`
 
 ## License
 
-MIT License - feel free to use this project freely
+MIT License - See LICENSE file for details
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue in the repository.
+For issues, questions, or suggestions, please open an issue on the repository.
 
 ---
 
-**ProjectPath** - Simplifying project management through intelligent scheduling analysis.
+**Version**: 1.0.0  
+**Last Updated**: February 2026

@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { FolderKanban, PlusCircle } from 'lucide-react'
 import CreateProjectForm from '../components/CreateProjectForm'
 import ProjectList from '../components/ProjectList'
+import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showNewProject, setShowNewProject] = useState(false)
+  const { isAuthenticated } = useAuth()
 
   const handleProjectCreated = () => {
     setRefreshTrigger(prev => prev + 1)
@@ -36,6 +38,13 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {!isAuthenticated && (
+        <div className="mb-8 p-4 bg-primary-50 border border-primary-100 rounded-xl text-sm text-secondary-700">
+          You can explore the app without signing in, but projects are saved locally in this browser.
+          <span className="ml-2 font-semibold">Log in to save across devices.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className={`space-y-6 transition-all duration-300 ${showNewProject ? 'lg:col-span-2' : 'lg:col-span-3'}`}>

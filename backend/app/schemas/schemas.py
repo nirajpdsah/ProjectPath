@@ -1,7 +1,32 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
+# User schemas
+class UserBase(BaseModel):
+    email: EmailStr
+    username: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class User(UserBase):
+    id: str
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: User
+
+# Activity schemas
 class ActivityBase(BaseModel):
     activityId: str
     name: str
@@ -43,12 +68,24 @@ class ProjectCreate(ProjectBase):
 
 class Project(ProjectBase):
     id: str
+    userId: str
     createdAt: datetime
     updatedAt: datetime
     activities: List[Activity] = []
 
     class Config:
         from_attributes = True
+
+class AdhocAnalysisRequest(BaseModel):
+    method: str
+    timeUnit: str
+    activities: List[ActivityBase]
+
+class AdhocProbabilityRequest(BaseModel):
+    method: str
+    timeUnit: str
+    deadline: float
+    activities: List[ActivityBase]
 
 class ProjectAnalysisResponse(BaseModel):
     projectDuration: float

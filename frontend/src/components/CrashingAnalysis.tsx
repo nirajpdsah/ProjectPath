@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
+import { getGuestProject, getGuestActivities } from '../utils/guestStorage'
 
 interface CrashingProps {
   projectId: string
+  isGuest?: boolean
 }
 
-export default function CrashingAnalysis({ projectId }: CrashingProps) {
+export default function CrashingAnalysis({ projectId, isGuest = false }: CrashingProps) {
   const [crashing, setCrashing] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,8 +19,23 @@ export default function CrashingAnalysis({ projectId }: CrashingProps) {
 
   const fetchCrashingData = async () => {
     try {
-      const response = await api.get(`/projects/${projectId}/crashing`)
-      setCrashing(response.data)
+      if (isGuest) {
+        const guestProject = getGuestProject(projectId)
+        const guestActivities = getGuestActivities(projectId)
+        if (!guestProject) {
+          setError('Project not found')
+          return
+        }
+        const response = await api.post('/projects/analyze-adhoc/crashing', {
+          method: guestProject.method,
+          timeUnit: guestProject.timeUnit,
+          activities: guestActivities
+        })
+        setCrashing(response.data)
+      } else {
+        const response = await api.get(`/projects/${projectId}/crashing`)
+        setCrashing(response.data)
+      }
     } catch (err) {
       setError('Failed to load crashing analysis')
       console.error(err)

@@ -4,16 +4,23 @@ import api from '../services/api'
 interface MonitoringProps {
   projectId: string
   projectMethod: string
+  isGuest?: boolean
+  analysis?: any
 }
 
-export default function MonitoringDashboard({ projectId, projectMethod }: MonitoringProps) {
-  const [analysis, setAnalysis] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+export default function MonitoringDashboard({ projectId, projectMethod, isGuest = false, analysis: propAnalysis }: MonitoringProps) {
+  const [analysis, setAnalysis] = useState<any>(propAnalysis || null)
+  const [loading, setLoading] = useState(!propAnalysis)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchAnalysis()
-  }, [projectId])
+    if (!propAnalysis && !isGuest) {
+      fetchAnalysis()
+    } else if (propAnalysis) {
+      setAnalysis(propAnalysis)
+      setLoading(false)
+    }
+  }, [projectId, propAnalysis])
 
   const fetchAnalysis = async () => {
     try {

@@ -1,10 +1,17 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Plus } from 'lucide-react'
+import { LayoutDashboard, Plus, LogOut, User as UserIcon } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, logout, isAuthenticated } = useAuth()
   const isHome = location.pathname === '/'
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <nav className={`border-b ${isHome ? 'bg-secondary-900 border-secondary-800' : 'bg-white border-secondary-200'} transition-colors duration-300`}>
@@ -45,6 +52,45 @@ export default function Navbar() {
               <Plus className="w-4 h-4 mr-2" />
               New Project
             </button>
+
+            {isAuthenticated ? (
+              <div className={`flex items-center gap-3 pl-4 border-l ${isHome ? 'border-secondary-700' : 'border-secondary-200'}`}>
+                <div className={`flex items-center gap-2 ${isHome ? 'text-white' : 'text-secondary-700'}`}>
+                  <UserIcon className="w-4 h-4" />
+                  <span className="text-sm font-medium">{user?.username}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${isHome
+                      ? 'text-secondary-300 hover:text-white hover:bg-secondary-800'
+                      : 'text-secondary-500 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className={`flex items-center gap-2 pl-4 border-l ${isHome ? 'border-secondary-700' : 'border-secondary-200'}`}>
+                <Link
+                  to="/login"
+                  className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${isHome
+                      ? 'text-secondary-300 hover:text-white hover:bg-secondary-800'
+                      : 'text-secondary-500 hover:text-secondary-900 hover:bg-secondary-50'
+                    }`}
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

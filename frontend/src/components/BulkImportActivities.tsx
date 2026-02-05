@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import api from '../services/api'
+import { addGuestActivity, getGuestActivities } from '../utils/guestStorage'
 
 interface ParsedActivity {
   activityId: string
@@ -20,13 +21,15 @@ interface BulkImportProps {
   projectMethod: 'CPM' | 'PERT'
   onImportComplete: () => void
   onCancel: () => void
+  isGuest?: boolean
 }
 
 export default function BulkImportActivities({
   projectId,
   projectMethod,
   onImportComplete,
-  onCancel
+  onCancel,
+  isGuest = false
 }: BulkImportProps) {
   const [step, setStep] = useState<'input' | 'preview' | 'importing'>('input')
   const [rawText, setRawText] = useState('')
@@ -121,25 +124,62 @@ export default function BulkImportActivities({
       setStep('importing')
       setError('')
 
-      for (let i = 0; i < parsedActivities.length; i++) {
-        const activity = parsedActivities[i]
+      if (isGuest) {
+        // For guest users, check for duplicates and add to localStorage
+        const existingActivities = getGuestActivities(projectId)
+        const existingIds = new Set(existingActivities.map(a => a.activityId))
 
-        const data: any = {
-          activityId: activity.activityId,
-          name: activity.name || activity.activityId,
-          predecessors: activity.predecessors || null
+        for (let i = 0; i < parsedActivities.length; i++) {
+          const activity = parsedActivities[i]
+
+          // Check for duplicates
+          if (existingIds.has(activity.activityId)) {
+            setError(`Activity ID "${activity.activityId}" already exists. Please use unique IDs.`)
+            setStep('preview')
+            return
+          }
+
+          const data: any = {
+            id: `guest-act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            projectId: projectId,
+            activityId: activity.activityId,
+            name: activity.name || activity.activityId,
+            predecessors: activity.predecessors || null
+          }
+
+          if (projectMethod === 'PERT') {
+            data.optimistic = activity.optimistic ? parseFloat(activity.optimistic) : null
+            data.mostLikely = activity.mostLikely ? parseFloat(activity.mostLikely) : null
+            data.pessimistic = activity.pessimistic ? parseFloat(activity.pessimistic) : null
+          } else {
+            data.duration = activity.duration ? parseFloat(activity.duration) : null
+          }
+
+          addGuestActivity(projectId, data)
+          setImportProgress(((i + 1) / parsedActivities.length) * 100)
         }
+      } else {
+        // For authenticated users, use API
+        for (let i = 0; i < parsedActivities.length; i++) {
+          const activity = parsedActivities[i]
 
-        if (projectMethod === 'PERT') {
-          data.optimistic = activity.optimistic ? parseFloat(activity.optimistic) : null
-          data.mostLikely = activity.mostLikely ? parseFloat(activity.mostLikely) : null
-          data.pessimistic = activity.pessimistic ? parseFloat(activity.pessimistic) : null
-        } else {
-          data.duration = activity.duration ? parseFloat(activity.duration) : null
+          const data: any = {
+            activityId: activity.activityId,
+            name: activity.name || activity.activityId,
+            predecessors: activity.predecessors || null
+          }
+
+          if (projectMethod === 'PERT') {
+            data.optimistic = activity.optimistic ? parseFloat(activity.optimistic) : null
+            data.mostLikely = activity.mostLikely ? parseFloat(activity.mostLikely) : null
+            data.pessimistic = activity.pessimistic ? parseFloat(activity.pessimistic) : null
+          } else {
+            data.duration = activity.duration ? parseFloat(activity.duration) : null
+          }
+
+          await api.post(`/projects/${projectId}/activities`, data)
+          setImportProgress(((i + 1) / parsedActivities.length) * 100)
         }
-
-        await api.post(`/projects/${projectId}/activities`, data)
-        setImportProgress(((i + 1) / parsedActivities.length) * 100)
       }
 
       onImportComplete()

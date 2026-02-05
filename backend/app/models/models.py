@@ -4,6 +4,17 @@ from datetime import datetime
 from app.database import Base
 import uuid
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    hashedPassword = Column(String, nullable=False)
+    createdAt = Column(DateTime, default=datetime.utcnow)
+    
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -11,10 +22,12 @@ class Project(Base):
     name = Column(String, nullable=False)
     method = Column(String, nullable=False)  # CPM or PERT
     timeUnit = Column(String, nullable=False)  # days, weeks, months
+    userId = Column(String, ForeignKey("users.id"), nullable=False)
     createdAt = Column(DateTime, default=datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     activities = relationship("Activity", back_populates="project", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="projects")
 
 class Activity(Base):
     __tablename__ = "activities"

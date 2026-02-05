@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from app.api import projects, activities, analysis
+from app.api import projects, activities, analysis, auth
 from app.database import Base, engine
 
 # Create database tables
@@ -27,6 +27,7 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(activities.router, prefix="/projects", tags=["activities"])
 app.include_router(analysis.router, prefix="/projects", tags=["analysis"])

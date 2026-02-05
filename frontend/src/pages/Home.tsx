@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, BarChart3, Clock, Share2, ShieldCheck, Zap } from 'lucide-react'
+import { ArrowRight, BarChart3, Clock, Share2, ShieldCheck, Zap, LogIn } from 'lucide-react'
 
 export default function Home() {
     const navigate = useNavigate()
@@ -23,14 +23,18 @@ export default function Home() {
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <button
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => navigate('/signup')}
                                 className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-secondary-900 bg-white hover:bg-secondary-50 transition-all duration-200 shadow-lg shadow-white/10"
                             >
-                                Launch Dashboard
+                                Get Started Free
                                 <ArrowRight className="ml-2 h-5 w-5" />
                             </button>
-                            <button className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-white border border-secondary-700 hover:bg-secondary-800 transition-all duration-200">
-                                Learn Methodology
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-white border border-secondary-700 hover:bg-secondary-800 transition-all duration-200"
+                            >
+                                <LogIn className="mr-2 h-5 w-5" />
+                                Log In
                             </button>
                         </div>
                     </div>

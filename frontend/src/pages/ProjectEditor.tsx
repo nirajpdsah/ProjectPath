@@ -3,10 +3,13 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Play, Trash2, Tag, Clock, Upload, List } from 'lucide-react'
 import api from '../services/api'
 import BulkImportActivities from '../components/BulkImportActivities'
+import { useAuth } from '../context/AuthContext'
+import { addGuestActivity, deleteGuestActivity, getGuestActivities, getGuestProject, saveGuestActivities } from '../utils/guestStorage'
 
 export default function ProjectEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [project, setProject] = useState<any>(null)
   const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,22 +28,41 @@ export default function ProjectEditor() {
 
   useEffect(() => {
     fetchProjectData()
-  }, [id])
+  }, [id, isAuthenticated])
 
   const fetchProjectData = async () => {
     try {
       setLoading(true)
-      const projRes = await api.get(`/projects/${id}`)
-      setProject(projRes.data)
+      if (!isAuthenticated) {
+        const guestProject = id ? getGuestProject(id) : null
+        if (!guestProject) {
+          // Check if this looks like an authenticated project (UUID without 'guest-' prefix)
+          const isAuthProject = id && !id.startsWith('guest-') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+          if (isAuthProject) {
+            setError('This project requires login. Please log in to access it.')
+          } else {
+            setError('Project not found')
+          }
+          setProject(null)
+          setActivities([])
+          return
+        }
+        setProject(guestProject)
+        setActivities(getGuestActivities(guestProject.id))
+        setError('')
+      } else {
+        const projRes = await api.get(`/projects/${id}`)
+        setProject(projRes.data)
 
-      try {
-        const actRes = await api.get(`/projects/${id}/activities`)
-        setActivities(Array.isArray(actRes.data) ? actRes.data : [])
-      } catch (err) {
-        console.error('Failed to fetch activities:', err)
-        setActivities([])
+        try {
+          const actRes = await api.get(`/projects/${id}/activities`)
+          setActivities(Array.isArray(actRes.data) ? actRes.data : [])
+        } catch (err) {
+          console.error('Failed to fetch activities:', err)
+          setActivities([])
+        }
+        setError('')
       }
-      setError('')
     } catch (err: any) {
       console.error('Error fetching project:', err)
       setError(err.response?.data?.detail || 'Failed to fetch project')
@@ -51,28 +73,40 @@ export default function ProjectEditor() {
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Add activity called with:', newActivity)
 
     if (!newActivity.activityId.trim()) {
       setError('Activity ID is required')
+      console.error('Validation failed: Activity ID is empty')
       return
     }
 
     if (!newActivity.name.trim()) {
       setError('Activity Name is required')
+      console.error('Validation failed: Activity Name is empty')
       return
     }
 
     if (project.method === 'CPM' && !newActivity.duration) {
       setError('Duration is required for CPM projects')
+      console.error('Validation failed: Duration is empty for CPM')
       return
     }
 
     if (project.method === 'PERT' && (!newActivity.optimistic || !newActivity.mostLikely || !newActivity.pessimistic)) {
       setError('Optimistic, Most Likely, and Pessimistic values are required for PERT projects')
+      console.error('Validation failed: PERT values incomplete')
       return
     }
 
     try {
+      if (!isAuthenticated) {
+        const duplicate = activities.some(a => a.activityId === newActivity.activityId)
+        if (duplicate) {
+          setError('Activity ID already exists')
+          return
+        }
+      }
       const activityData: any = {
         activityId: newActivity.activityId,
         name: newActivity.name,
@@ -88,7 +122,21 @@ export default function ProjectEditor() {
         activityData.pessimistic = parseFloat(newActivity.pessimistic)
       }
 
-      await api.post(`/projects/${id}/activities`, activityData)
+      if (!isAuthenticated) {
+        const guestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `guest-act-${Date.now()}`
+        const guestActivity = {
+          id: guestId,
+          projectId: id || '',
+          ...activityData
+        }
+        addGuestActivity(id || '', guestActivity)
+        await fetchProjectData()
+      } else {
+        await api.post(`/projects/${id}/activities`, activityData)
+        await fetchProjectData()
+      }
       setNewActivity({
         activityId: '',
         name: '',
@@ -100,7 +148,6 @@ export default function ProjectEditor() {
         cost: ''
       })
       setError('')
-      await fetchProjectData()
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to add activity'
       setError(errorMsg)
@@ -109,12 +156,23 @@ export default function ProjectEditor() {
   }
 
   const handleDeleteActivity = async (activityId: string) => {
+    console.log('Delete activity called with ID:', activityId, 'Project ID:', id, 'isAuthenticated:', isAuthenticated)
     if (!confirm('Are you sure you want to delete this activity?')) return
 
     try {
-      await api.delete(`/projects/${id}/activities/${activityId}`)
-      await fetchProjectData()
+      if (!isAuthenticated) {
+        console.log('Deleting guest activity...')
+        deleteGuestActivity(id || '', activityId)
+        await fetchProjectData()
+        console.log('Guest activity deleted and data refreshed')
+      } else {
+        console.log('Deleting authenticated activity...')
+        await api.delete(`/projects/${id}/activities/${activityId}`)
+        await fetchProjectData()
+        console.log('Authenticated activity deleted and data refreshed')
+      }
     } catch (err) {
+      console.error('Delete error:', err)
       setError('Failed to delete activity')
     }
   }
@@ -271,7 +329,7 @@ export default function ProjectEditor() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button
-                              onClick={() => activity?.id && handleDeleteActivity(activity.id)}
+                              onClick={() => (activity?.id || activity?.activityId) && handleDeleteActivity(activity.id || activity.activityId)}
                               className="p-1 text-secondary-400 hover:text-danger-600 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                               title="Delete Activity"
                             >
@@ -317,6 +375,7 @@ export default function ProjectEditor() {
                   fetchProjectData()
                 }}
                 onCancel={() => setShowBulkImport(false)}
+                isGuest={!isAuthenticated}
               />
             ) : (
               <form onSubmit={handleAddActivity} className="space-y-5">
@@ -326,9 +385,13 @@ export default function ProjectEditor() {
                     <input
                       type="text"
                       value={newActivity.activityId}
-                      onChange={(e) => setNewActivity({ ...newActivity, activityId: e.target.value })}
-                      className="input-field"
+                      onChange={(e) => {
+                        console.log('Activity ID changed to:', e.target.value)
+                        setNewActivity({ ...newActivity, activityId: e.target.value })
+                      }}
+                      className="input-field w-full px-4 py-2.5 text-base"
                       placeholder="e.g. A"
+                      required
                     />
                   </div>
                   <div className="col-span-1">
@@ -337,7 +400,7 @@ export default function ProjectEditor() {
                       type="text"
                       value={newActivity.predecessors}
                       onChange={(e) => setNewActivity({ ...newActivity, predecessors: e.target.value })}
-                      className="input-field"
+                      className="input-field w-full px-4 py-2.5 text-base"
                       placeholder="e.g. A, B"
                     />
                   </div>
@@ -349,7 +412,7 @@ export default function ProjectEditor() {
                     type="text"
                     value={newActivity.name}
                     onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
-                    className="input-field"
+                    className="input-field w-full px-4 py-2.5 text-base"
                     placeholder="Brief description of the task"
                   />
                 </div>
@@ -364,14 +427,14 @@ export default function ProjectEditor() {
                         min="0"
                         value={newActivity.duration}
                         onChange={(e) => setNewActivity({ ...newActivity, duration: e.target.value })}
-                        className="input-field pl-9"
+                        className="input-field w-full pl-10 px-4 py-2.5 text-base"
                         placeholder="0.0"
                       />
-                      <Clock className="w-4 h-4 text-secondary-400 absolute left-3 top-2.5" />
+                      <Clock className="w-4 h-4 text-secondary-400 absolute left-3 top-3.5" />
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-secondary-600 uppercase tracking-wider mb-1.5" title="Optimistic Time">Opt (a)</label>
                       <input
@@ -380,7 +443,7 @@ export default function ProjectEditor() {
                         min="0"
                         value={newActivity.optimistic}
                         onChange={(e) => setNewActivity({ ...newActivity, optimistic: e.target.value })}
-                        className="input-field text-center px-1"
+                        className="input-field w-full px-4 py-2.5 text-base text-center"
                         placeholder="0"
                       />
                     </div>
@@ -392,7 +455,7 @@ export default function ProjectEditor() {
                         min="0"
                         value={newActivity.mostLikely}
                         onChange={(e) => setNewActivity({ ...newActivity, mostLikely: e.target.value })}
-                        className="input-field text-center px-1 border-primary-300"
+                        className="input-field w-full px-4 py-2.5 text-base text-center border-primary-300"
                         placeholder="0"
                       />
                     </div>
@@ -404,7 +467,7 @@ export default function ProjectEditor() {
                         min="0"
                         value={newActivity.pessimistic}
                         onChange={(e) => setNewActivity({ ...newActivity, pessimistic: e.target.value })}
-                        className="input-field text-center px-1"
+                        className="input-field w-full px-4 py-2.5 text-base text-center"
                         placeholder="0"
                       />
                     </div>

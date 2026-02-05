@@ -5,6 +5,8 @@ import api from '../services/api'
 import MonitoringDashboard from '../components/MonitoringDashboard'
 import CrashingAnalysis from '../components/CrashingAnalysis'
 import NetworkDiagram from '../components/NetworkDiagram'
+import { useAuth } from '../context/AuthContext'
+import { getGuestActivities, getGuestProject } from '../utils/guestStorage'
 
 interface ActivityAnalysis {
   id: string
@@ -28,6 +30,7 @@ interface ProjectAnalysis {
 export default function AnalysisView() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [analysis, setAnalysis] = useState<ProjectAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -41,7 +44,7 @@ export default function AnalysisView() {
 
   useEffect(() => {
     performAnalysis()
-  }, [id])
+  }, [id, isAuthenticated])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,13 +61,37 @@ export default function AnalysisView() {
   const performAnalysis = async () => {
     try {
       setLoading(true)
-      const response = await api.get(`/projects/${id}/analyze`)
-      setAnalysis(response.data)
-      setError('')
+      if (!isAuthenticated) {
+        const guestProject = id ? getGuestProject(id) : null
+        const guestActivities = id ? getGuestActivities(id) : []
+        if (!guestProject) {
+          setError('Project not found')
+          setAnalysis(null)
+          return
+        }
+        if (!guestActivities || guestActivities.length === 0) {
+          setError('Project has no activities')
+          setAnalysis(null)
+          return
+        }
 
-      // Get project method
-      const projectResponse = await api.get(`/projects/${id}`)
-      setProjectMethod(projectResponse.data.method)
+        const response = await api.post('/projects/analyze-adhoc', {
+          method: guestProject.method,
+          timeUnit: guestProject.timeUnit,
+          activities: guestActivities
+        })
+        setAnalysis(response.data)
+        setProjectMethod(guestProject.method)
+        setError('')
+      } else {
+        const response = await api.get(`/projects/${id}/analyze`)
+        setAnalysis(response.data)
+        setError('')
+
+        // Get project method
+        const projectResponse = await api.get(`/projects/${id}`)
+        setProjectMethod(projectResponse.data.method)
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to perform analysis')
       console.error(err)
@@ -81,11 +108,28 @@ export default function AnalysisView() {
 
     setCalculating(true)
     try {
-      const response = await api.post(`/projects/${id}/probability`, {
-        deadline: parseFloat(deadline)
-      })
-      setProbability(response.data)
-      setError('')
+      if (!isAuthenticated) {
+        const guestProject = id ? getGuestProject(id) : null
+        const guestActivities = id ? getGuestActivities(id) : []
+        if (!guestProject) {
+          setError('Project not found')
+          return
+        }
+        const response = await api.post('/projects/analyze-adhoc/probability', {
+          method: guestProject.method,
+          timeUnit: guestProject.timeUnit,
+          deadline: parseFloat(deadline),
+          activities: guestActivities
+        })
+        setProbability(response.data)
+        setError('')
+      } else {
+        const response = await api.post(`/projects/${id}/probability`, {
+          deadline: parseFloat(deadline)
+        })
+        setProbability(response.data)
+        setError('')
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to calculate probability')
     } finally {
@@ -97,29 +141,66 @@ export default function AnalysisView() {
     setExporting(true)
     setShowExportMenu(false)
     try {
-      const response = await api.get(`/projects/${id}/export?format=${format}`, {
-        responseType: 'blob'
-      })
-      
-      // response.data is already a blob when responseType is 'blob'
-      const blob = response.data
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-      const extension = format === 'pdf' ? 'pdf' : 'json'
-      link.download = `project_analysis_${timestamp}.${extension}`
-      
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      if (!isAuthenticated) {
+        // For guests, use adhoc export endpoint
+        const guestProject = id ? getGuestProject(id) : null
+        const guestActivities = id ? getGuestActivities(id) : []
+        if (!guestProject) {
+          setError('Project not found')
+          setExporting(false)
+          return
+        }
+
+        console.log('Exporting guest project:', { format, activities: guestActivities.length })
+
+        const response = await api.post(`/projects/export-adhoc?format=${format}`, {
+          method: guestProject.method,
+          timeUnit: guestProject.timeUnit,
+          activities: guestActivities
+        }, {
+          responseType: 'blob'
+        })
+        
+        const blob = response.data
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+        const extension = format === 'pdf' ? 'pdf' : 'json'
+        link.download = `guest_project_analysis_${timestamp}.${extension}`
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        console.log('Export successful')
+      } else {
+        // For authenticated users, use regular endpoint
+        const response = await api.get(`/projects/${id}/export?format=${format}`, {
+          responseType: 'blob'
+        })
+        
+        const blob = response.data
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+        const extension = format === 'pdf' ? 'pdf' : 'json'
+        link.download = `project_analysis_${timestamp}.${extension}`
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }
       
       setError('')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to export analysis')
+      console.error('Export error:', err)
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to export analysis'
+      setError(errorMsg)
     } finally {
       setExporting(false)
     }
@@ -362,10 +443,10 @@ export default function AnalysisView() {
                           step="0.1"
                           value={deadline}
                           onChange={(e) => setDeadline(e.target.value)}
-                          className="input-field pl-9"
+                          className="input-field pl-10 py-2.5 text-base"
                           placeholder="e.g. 45.0"
                         />
-                        <Clock className="w-4 h-4 text-secondary-400 absolute left-3 top-2.5" />
+                        <Clock className="w-5 h-5 text-secondary-400 absolute left-3 top-3" />
                       </div>
                     </div>
 
@@ -411,16 +492,16 @@ export default function AnalysisView() {
       )}
 
       {activeTab === 'network' && id && analysis && (
-        <NetworkDiagram projectId={id} criticalPath={analysis.criticalPath} />
+        <NetworkDiagram projectId={id} criticalPath={analysis.criticalPath} analysisData={analysis} />
       )}
 
       {activeTab === 'monitoring' && id && (
-        <MonitoringDashboard projectId={id} projectMethod={projectMethod} />
+        <MonitoringDashboard projectId={id} projectMethod={projectMethod} isGuest={!isAuthenticated} analysis={analysis} />
       )}
 
       {activeTab === 'crashing' && id && (
         <div className="card p-6">
-          <CrashingAnalysis projectId={id} />
+          <CrashingAnalysis projectId={id} isGuest={!isAuthenticated} />
         </div>
       )}
     </div>
