@@ -47,6 +47,7 @@ Cost:      $0/month ✅
 4. Select ProjectPath repo
 5. Fill in:
    - Name: projectpath-backend
+   - Root Directory: backend
    - Build: pip install -r requirements.txt
    - Start: python main.py
    - Plan: Free

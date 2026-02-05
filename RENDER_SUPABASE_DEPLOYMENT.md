@@ -66,6 +66,7 @@ Complete guide to deploy ProjectPath using:
 
 **Basic Settings:**
 - **Name**: `projectpath-backend`
+- **Root Directory**: `backend`
 - **Environment**: `Python 3`
 - **Region**: Pick closest to you
 - **Branch**: `main`
