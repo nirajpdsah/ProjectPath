@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: projectpath-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        fromField: jwt_secret
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: 168
+    healthCheckPath: /health

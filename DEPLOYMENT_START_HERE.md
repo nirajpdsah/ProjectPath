@@ -9,7 +9,7 @@ This should take you about **15-20 minutes**.
 ## What You'll Have When Done
 
 ✅ **Frontend**: Live at `https://projectpath.vercel.app` (or your custom domain)  
-✅ **Backend**: Live at `https://your-railway-url.up.railway.app`  
+✅ **Backend**: Live at `https://your-render-url.onrender.com`  
 ✅ **Database**: PostgreSQL database online  
 ✅ **Cost**: $0/month  
 ✅ **Users**: Unlimited users (free tier limits)  
@@ -21,7 +21,7 @@ This should take you about **15-20 minutes**.
 Make sure you have:
 - [ ] GitHub account (free at github.com)
 - [ ] Vercel account (free at vercel.com)  
-- [ ] Railway account (free at railway.app)
+- [ ] Render account (free at render.com)
 - [ ] All 3 accounts linked to GitHub (easiest way)
 
 **Create all accounts now** → Takes 5 minutes total
@@ -32,22 +32,25 @@ Make sure you have:
 
 Follow this exact order for fastest deployment:
 
-### 1. **DEPLOYMENT_QUICK_START.md** (2 min read)
-   - High-level overview
-   - What's been configured
-   - Cost breakdown
+### 1. **RENDER_QUICK_START.md** (5 min read) ← RECOMMENDED!
+   - Quick reference for Render backend
+   - 3 simple steps to deploy
+   - Best for fast deployment
 
-### 2. **DEPLOYMENT_CHECKLIST.md** (reference during deployment)
-   - Step-by-step checklist
-   - Print it or keep it open
-   - Check off each item
-
-### 3. **DEPLOYMENT.md** (detailed guide)
-   - Full walkthrough with explanations
+### 2. **RENDER_DEPLOYMENT.md** (detailed guide)
+   - Full step-by-step walkthrough
+   - Render-specific instructions
    - Troubleshooting section
-   - Reference URLs
 
-### 4. **ARCHITECTURE_DEPLOYMENT.md** (understand the flow)
+### 3. **ARCHITECTURE_DEPLOYMENT.md** (understand the flow)
+   - System diagrams
+   - How data flows
+   - Scaling information
+
+### 4. **DOCUMENTATION_MAP.md** (reference)
+   - Guide selector
+   - Which document when
+   - Quick reference
    - System diagrams
    - How data flows
    - Scaling information
@@ -64,18 +67,19 @@ Follow this exact order for fastest deployment:
 # Then follow the prompts to push to GitHub
 ```
 
-### Step 2: Railway (5 min)
-1. Go to railway.app
-2. Click "Deploy from GitHub"
-3. Select ProjectPath
-4. Add `JWT_SECRET` to variables
-5. Copy the Railway URL
+### Step 2: Render Backend (5 min)
+1. Go to render.com
+2. Sign up with GitHub
+3. Click "Deploy from GitHub"
+4. Select ProjectPath
+5. Add `JWT_SECRET` to environment variables
+6. Copy the Render URL
 
-### Step 3: Vercel (5 min)
+### Step 3: Vercel Frontend (5 min)
 1. Go to vercel.com
 2. Click "Import Git Repository"
 3. Select ProjectPath
-4. Add `VITE_API_URL` = Railway URL
+4. Add `VITE_API_URL` = Render URL
 5. Click Deploy
 
 ### Step 4: Test (2 min)
@@ -91,20 +95,19 @@ Follow this exact order for fastest deployment:
 
 | Question | Read This |
 |----------|-----------|
-| I just want to deploy, fast! | DEPLOYMENT_QUICK_START.md |
-| I want detailed instructions | DEPLOYMENT.md |
-| I need a checklist to follow | DEPLOYMENT_CHECKLIST.md |
+| I just want to deploy, fast! | RENDER_QUICK_START.md |
+| I want detailed instructions | RENDER_DEPLOYMENT.md |
 | I want to understand architecture | ARCHITECTURE_DEPLOYMENT.md |
-| I want everything | Read all of them in order |
+| Compare all options | DOCUMENTATION_MAP.md |
 
 ---
 
 ## Key Points to Remember
 
 ### Cost = $0/month
-- Railway: 500 hours free (perfect for hobby)
+- Render: 750 hours free (perfect for hobby)
 - Vercel: Unlimited free (for static sites)
-- PostgreSQL: Included free on Railway
+- PostgreSQL: Included free on Render
 - Your app: Completely free!
 
 ### What Works for Free
@@ -118,12 +121,12 @@ Follow this exact order for fastest deployment:
 - Cross-device sync
 
 ### No Credit Card Ever Needed
-- Railway: Free forever (with 500 hr/month limit)
+- Render: Free forever (with 750 hr/month limit)
 - Vercel: Free forever for static hosting
 - GitHub: Free forever
 
 ### Scaling Later (If Needed)
-- Railway: $7+/month for unlimited hours
+- Render: $7+/month for unlimited hours
 - Vercel: $20+/month for premium (optional)
 - Most projects never exceed free tier
 
@@ -134,8 +137,8 @@ Follow this exact order for fastest deployment:
 **Can't push to GitHub?**  
 → See "DEPLOYMENT.md" → "Troubleshooting"
 
-**Railway deployment failed?**  
-→ Check Railway logs, see DEPLOYMENT.md
+**Render deployment failed?**  
+→ Check Render logs, see RENDER_DEPLOYMENT.md
 
 **Frontend won't load?**  
 → Check environment variables, see DEPLOYMENT_CHECKLIST.md
@@ -169,7 +172,7 @@ Follow this exact order for fastest deployment:
 ```
 Now:        You're reading this
 +5 min:     GitHub setup done
-+10 min:    Backend on Railway
++10 min:    Backend on Render
 +15 min:    Frontend on Vercel
 +20 min:    Everything tested
 +20 min:    🎉 LIVE FOR THE WORLD!
@@ -188,8 +191,14 @@ Now:        You're reading this
 
 **Option B: Careful Deploy (Safest)**
 → Read DEPLOYMENT_CHECKLIST.md first  
-→ Use it while following DEPLOYMENT.md  
+→ Use it while following DEPLOYMENT.md or RENDER_DEPLOYMENT.md  
 → Take your time, nothing can break
+
+**Option D: Using Render (Recommended)**
+→ Read RENDER_QUICK_START.md (5 minutes!)  
+→ 750 free hours/month for backend  
+→ Same setup as Railway, better pricing  
+→ Follow RENDER_DEPLOYMENT.md for details
 
 **Option C: Learn First Deploy Second**
 → Read ARCHITECTURE_DEPLOYMENT.md  
