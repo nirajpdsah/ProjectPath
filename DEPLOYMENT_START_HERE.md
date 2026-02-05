@@ -10,7 +10,7 @@ This should take you about **15-20 minutes**.
 
 ✅ **Frontend**: Live at `https://projectpath.vercel.app` (or your custom domain)  
 ✅ **Backend**: Live at `https://your-render-url.onrender.com`  
-✅ **Database**: PostgreSQL database online  
+✅ **Database**: PostgreSQL on Supabase  
 ✅ **Cost**: $0/month  
 ✅ **Users**: Unlimited users (free tier limits)  
 
@@ -22,7 +22,8 @@ Make sure you have:
 - [ ] GitHub account (free at github.com)
 - [ ] Vercel account (free at vercel.com)  
 - [ ] Render account (free at render.com)
-- [ ] All 3 accounts linked to GitHub (easiest way)
+- [ ] Supabase account (free at supabase.com)
+- [ ] All accounts linked to GitHub (easiest way)
 
 **Create all accounts now** → Takes 5 minutes total
 
@@ -32,14 +33,14 @@ Make sure you have:
 
 Follow this exact order for fastest deployment:
 
-### 1. **RENDER_QUICK_START.md** (5 min read) ← RECOMMENDED!
-   - Quick reference for Render backend
-   - 3 simple steps to deploy
+### 1. **RENDER_SUPABASE_QUICK_START.md** (5 min read) ← RECOMMENDED!
+   - Quick 4-step deployment
+   - Render + Supabase setup
    - Best for fast deployment
 
-### 2. **RENDER_DEPLOYMENT.md** (detailed guide)
+### 2. **RENDER_SUPABASE_DEPLOYMENT.md** (detailed guide)
    - Full step-by-step walkthrough
-   - Render-specific instructions
+   - Supabase database setup
    - Troubleshooting section
 
 ### 3. **ARCHITECTURE_DEPLOYMENT.md** (understand the flow)
@@ -67,13 +68,20 @@ Follow this exact order for fastest deployment:
 # Then follow the prompts to push to GitHub
 ```
 
-### Step 2: Render Backend (5 min)
+### Step 2: Setup Database & Backend (8 min)
+
+**Supabase (3 min):**
+1. Go to supabase.com
+2. Create new project
+3. Copy connection string
+
+**Render (5 min):**
 1. Go to render.com
 2. Sign up with GitHub
-3. Click "Deploy from GitHub"
-4. Select ProjectPath
-5. Add `JWT_SECRET` to environment variables
-6. Copy the Render URL
+3. Deploy from GitHub
+4. Add DATABASE_URL (Supabase connection string)
+5. Add JWT_SECRET
+6. Copy Render URL
 
 ### Step 3: Vercel Frontend (5 min)
 1. Go to vercel.com
@@ -95,8 +103,8 @@ Follow this exact order for fastest deployment:
 
 | Question | Read This |
 |----------|-----------|
-| I just want to deploy, fast! | RENDER_QUICK_START.md |
-| I want detailed instructions | RENDER_DEPLOYMENT.md |
+| I just want to deploy, fast! | RENDER_SUPABASE_QUICK_START.md |
+| I want detailed instructions | RENDER_SUPABASE_DEPLOYMENT.md |
 | I want to understand architecture | ARCHITECTURE_DEPLOYMENT.md |
 | Compare all options | DOCUMENTATION_MAP.md |
 
@@ -105,9 +113,9 @@ Follow this exact order for fastest deployment:
 ## Key Points to Remember
 
 ### Cost = $0/month
-- Render: 750 hours free (perfect for hobby)
-- Vercel: Unlimited free (for static sites)
-- PostgreSQL: Included free on Render
+- Render: 750 hours free (backend)
+- Supabase: 500MB free (database)
+- Vercel: Unlimited free (frontend)
 - Your app: Completely free!
 
 ### What Works for Free
@@ -122,11 +130,13 @@ Follow this exact order for fastest deployment:
 
 ### No Credit Card Ever Needed
 - Render: Free forever (with 750 hr/month limit)
+- Supabase: Free forever (with 500MB limit)
 - Vercel: Free forever for static hosting
 - GitHub: Free forever
 
 ### Scaling Later (If Needed)
 - Render: $7+/month for unlimited hours
+- Supabase: $25+/month for 8GB database
 - Vercel: $20+/month for premium (optional)
 - Most projects never exceed free tier
 
@@ -138,7 +148,10 @@ Follow this exact order for fastest deployment:
 → See "DEPLOYMENT.md" → "Troubleshooting"
 
 **Render deployment failed?**  
-→ Check Render logs, see RENDER_DEPLOYMENT.md
+→ Check Render logs, see RENDER_SUPABASE_DEPLOYMENT.md
+
+**Database connection failed?**
+→ Check Supabase connection string, see RENDER_SUPABASE_DEPLOYMENT.md
 
 **Frontend won't load?**  
 → Check environment variables, see DEPLOYMENT_CHECKLIST.md
@@ -147,7 +160,7 @@ Follow this exact order for fastest deployment:
 → Verify VITE_API_URL is set correctly
 
 **Still stuck?**  
-→ Read all of DEPLOYMENT.md → Check Railway/Vercel dashboards
+→ Read all of RENDER_SUPABASE_DEPLOYMENT.md → Check Render/Supabase/Vercel dashboards
 
 ---
 
@@ -172,9 +185,10 @@ Follow this exact order for fastest deployment:
 ```
 Now:        You're reading this
 +5 min:     GitHub setup done
-+10 min:    Backend on Render
-+15 min:    Frontend on Vercel
-+20 min:    Everything tested
++3 min:     Supabase database setup
++5 min:     Backend on Render
++5 min:     Frontend on Vercel
++2 min:     Everything tested
 +20 min:    🎉 LIVE FOR THE WORLD!
 ```
 
@@ -185,20 +199,14 @@ Now:        You're reading this
 ### Next Step: Choose Your Adventure
 
 **Option A: Quick Deploy (Fastest)**
-→ Read DEPLOYMENT_QUICK_START.md  
-→ Follow the 3 quick steps  
-→ Done in 15 minutes!
+→ Read RENDER_SUPABASE_QUICK_START.md  
+→ Follow the 4 quick steps  
+→ Done in 20 minutes!
 
 **Option B: Careful Deploy (Safest)**
-→ Read DEPLOYMENT_CHECKLIST.md first  
-→ Use it while following DEPLOYMENT.md or RENDER_DEPLOYMENT.md  
+→ Read RENDER_SUPABASE_DEPLOYMENT.md  
+→ Follow step-by-step  
 → Take your time, nothing can break
-
-**Option D: Using Render (Recommended)**
-→ Read RENDER_QUICK_START.md (5 minutes!)  
-→ 750 free hours/month for backend  
-→ Same setup as Railway, better pricing  
-→ Follow RENDER_DEPLOYMENT.md for details
 
 **Option C: Learn First Deploy Second**
 → Read ARCHITECTURE_DEPLOYMENT.md  
@@ -262,10 +270,9 @@ This is the fastest, easiest, and cheapest way to deploy a full-stack app.
 
 ### Ready? Pick a guide below and start:
 
-1. **Just deploy it**: [DEPLOYMENT_QUICK_START.md](DEPLOYMENT_QUICK_START.md)
-2. **Follow a checklist**: [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
-3. **Full instructions**: [DEPLOYMENT.md](DEPLOYMENT.md)
-4. **Understand it first**: [ARCHITECTURE_DEPLOYMENT.md](ARCHITECTURE_DEPLOYMENT.md)
+1. **Just deploy it**: [RENDER_SUPABASE_QUICK_START.md](RENDER_SUPABASE_QUICK_START.md)
+2. **Full instructions**: [RENDER_SUPABASE_DEPLOYMENT.md](RENDER_SUPABASE_DEPLOYMENT.md)
+3. **Understand it first**: [ARCHITECTURE_DEPLOYMENT.md](ARCHITECTURE_DEPLOYMENT.md)
 
 ---
 
