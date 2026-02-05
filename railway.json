@@ -1,0 +1,11 @@
+name: ProjectPath
+services:
+  - type: web
+    name: backend
+    runtime: python
+    startCommand: python main.py
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PORT
+        value: 8001
