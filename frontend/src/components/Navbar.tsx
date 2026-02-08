@@ -41,6 +41,18 @@ export default function Navbar() {
               Dashboard
             </Link>
 
+            <Link
+              to="/crashing"
+              className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md transition-colors
+                ${isHome
+                  ? 'text-secondary-300 hover:text-white hover:bg-secondary-800'
+                  : 'text-secondary-500 hover:text-secondary-900 hover:bg-secondary-50'
+                } ${location.pathname === '/crashing' ? 'bg-secondary-100 text-secondary-900' : ''}`}
+              title="Project Crashing Analysis"
+            >
+              ⚡ Crashing
+            </Link>
+
             <button
               onClick={() => navigate('/dashboard')}
               className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all

@@ -23,7 +23,9 @@ export default function ProjectEditor() {
     optimistic: '',
     mostLikely: '',
     pessimistic: '',
-    cost: ''
+    cost: '',
+    crashTime: '',
+    crashCost: ''
   })
 
   useEffect(() => {
@@ -99,6 +101,12 @@ export default function ProjectEditor() {
       return
     }
 
+    if (project.method === 'Crashing' && (!newActivity.duration || !newActivity.crashTime)) {
+      setError('Normal Time and Crash Time are required for Crashing projects')
+      console.error('Validation failed: Crashing times incomplete')
+      return
+    }
+
     try {
       if (!isAuthenticated) {
         const duplicate = activities.some(a => a.activityId === newActivity.activityId)
@@ -114,12 +122,17 @@ export default function ProjectEditor() {
         cost: newActivity.cost ? parseFloat(newActivity.cost) : null
       }
 
-      if (project.method === 'CPM') {
+      if (project.method === 'CPM' || project.method === 'Crashing') {
         activityData.duration = parseFloat(newActivity.duration)
       } else {
         activityData.optimistic = parseFloat(newActivity.optimistic)
         activityData.mostLikely = parseFloat(newActivity.mostLikely)
         activityData.pessimistic = parseFloat(newActivity.pessimistic)
+      }
+
+      if (project.method === 'Crashing') {
+        activityData.crashTime = parseFloat(newActivity.crashTime)
+        activityData.crashCost = newActivity.crashCost ? parseFloat(newActivity.crashCost) : null
       }
 
       if (!isAuthenticated) {
@@ -145,7 +158,9 @@ export default function ProjectEditor() {
         optimistic: '',
         mostLikely: '',
         pessimistic: '',
-        cost: ''
+        cost: '',
+        crashTime: '',
+        crashCost: ''
       })
       setError('')
     } catch (err: any) {
@@ -180,7 +195,11 @@ export default function ProjectEditor() {
   const handleAnalyze = async () => {
     try {
       setError('')
-      navigate(`/project/${id}/analysis`)
+      if (project?.method === 'Crashing') {
+        navigate(`/project/${id}/crashing`)
+      } else {
+        navigate(`/project/${id}/analysis`)
+      }
     } catch (err) {
       setError('Failed to navigate to analysis')
     }
@@ -431,6 +450,61 @@ export default function ProjectEditor() {
                         placeholder="0.0"
                       />
                       <Clock className="w-4 h-4 text-secondary-400 absolute left-3 top-3.5" />
+                    </div>
+                  </div>
+                ) : project?.method === 'Crashing' ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-secondary-600 uppercase tracking-wider mb-1.5">Normal Time <span className="text-danger-500">*</span></label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={newActivity.duration}
+                          onChange={(e) => setNewActivity({ ...newActivity, duration: e.target.value })}
+                          className="input-field w-full px-4 py-2.5 text-base"
+                          placeholder="0.0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-secondary-600 uppercase tracking-wider mb-1.5">Crash Time <span className="text-danger-500">*</span></label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={newActivity.crashTime}
+                          onChange={(e) => setNewActivity({ ...newActivity, crashTime: e.target.value })}
+                          className="input-field w-full px-4 py-2.5 text-base"
+                          placeholder="0.0"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-secondary-600 uppercase tracking-wider mb-1.5">Normal Cost</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newActivity.cost}
+                          onChange={(e) => setNewActivity({ ...newActivity, cost: e.target.value })}
+                          className="input-field w-full px-4 py-2.5 text-base"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-secondary-600 uppercase tracking-wider mb-1.5">Crash Cost</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newActivity.crashCost}
+                          onChange={(e) => setNewActivity({ ...newActivity, crashCost: e.target.value })}
+                          className="input-field w-full px-4 py-2.5 text-base"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
                   </div>
                 ) : (

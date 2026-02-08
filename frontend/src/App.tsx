@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import ProjectEditor from './pages/ProjectEditor'
 import AnalysisView from './pages/AnalysisView'
+import ProjectCrashing from './pages/ProjectCrashing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Navbar from './components/Navbar'
@@ -20,6 +21,8 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/project/:id" element={<ProjectEditor />} />
           <Route path="/project/:id/analysis" element={<AnalysisView />} />
+          <Route path="/project/:id/crashing" element={<ProjectCrashing />} />
+          <Route path="/crashing" element={<ProjectCrashing />} />
         </Routes>
       </main>
     </div>

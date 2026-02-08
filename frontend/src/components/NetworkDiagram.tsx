@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import api from '../services/api'
 
 interface Activity {
@@ -44,31 +44,22 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  useEffect(() => {
-    fetchActivities()
-  }, [projectId, analysisData])
-
-  useEffect(() => {
-    if (activities.length > 0) {
-      layoutNodes()
-    }
-  }, [activities])
-
-  useEffect(() => {
-    if (nodes.length > 0) {
-      drawNetwork()
-    }
-  }, [nodes, hoveredNode])
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       if (analysisData) {
-        // Guest mode - use provided analysis data
-        const activitiesWithAnalysis = analysisData.activities.map((activity: any) => ({
-          ...activity,
-          duration: activity.duration ||
-            ((activity.optimistic + 4 * activity.mostLikely + activity.pessimistic) / 6)
-        }))
+        // Guest mode - use provided analysis data (works with both PERT/CPM and Crashing activities)
+        const activitiesWithAnalysis = analysisData.activities.map((activity: any) => {
+          // Handle both PERT/CPM (with optimistic/mostLikely/pessimistic) and Crashing (with duration directly)
+          const duration = activity.duration || 
+            (activity.optimistic ? ((activity.optimistic + 4 * activity.mostLikely + activity.pessimistic) / 6) : 0)
+          
+          return {
+            ...activity,
+            duration,
+            // Ensure we have predecessors field
+            predecessors: activity.predecessors || activity.predecessorActivity || ''
+          }
+        })
         setActivities(activitiesWithAnalysis)
       } else {
         // Authenticated mode - fetch from API
@@ -93,9 +84,9 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
     } catch (error) {
       console.error('Failed to fetch activities:', error)
     }
-  }
+  }, [projectId, analysisData])
 
-  const layoutNodes = () => {
+  const layoutNodes = useCallback(() => {
     if (activities.length === 0) return
 
     // Build dependency graph
@@ -218,9 +209,9 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
     })
 
     setNodes(newNodes)
-  }
+  }, [activities, dimensions])
 
-  const drawNetwork = () => {
+  const drawNetwork = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || nodes.length === 0) return
 
@@ -443,7 +434,7 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
 
     // Draw legend
     drawLegend(ctx)
-  }
+  }, [nodes, hoveredNode, criticalPath])
 
   const drawLegend = (ctx: CanvasRenderingContext2D) => {
     const legendX = 20
@@ -481,6 +472,22 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
 
     ctx.fillText('Non-Critical', legendX + 55, legendY + 49)
   }
+
+  useEffect(() => {
+    fetchActivities()
+  }, [projectId, analysisData])
+
+  useEffect(() => {
+    if (activities.length > 0) {
+      layoutNodes()
+    }
+  }, [activities, layoutNodes])
+
+  useEffect(() => {
+    if (nodes.length > 0) {
+      drawNetwork()
+    }
+  }, [nodes, hoveredNode, drawNetwork])
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -585,60 +592,69 @@ export default function NetworkDiagram({ projectId, criticalPath, analysisData }
           Reset Layout
         </button>
       </div>
-      <div className="mb-4 text-sm text-secondary-600 bg-secondary-50 border border-secondary-200 rounded-lg p-3 flex items-center justify-between">
-        <div className="flex items-center">
-          <span className="mr-2">💡</span>
-          <strong>Tip:</strong><span className="ml-1">Drag any node to reposition it. Click "Reset Layout" to restore the automatic layout.</span>
+
+      {activities.length === 0 ? (
+        <div className="border border-secondary-200 rounded-xl p-8 bg-slate-50 text-center text-secondary-600">
+          <p>Loading network diagram...</p>
         </div>
-        <button
-          onClick={() => setDimensions({ width: 1200, height: 600 })}
-          className="px-3 py-1 text-xs font-medium bg-white border border-secondary-300 rounded hover:bg-secondary-50 transition-colors"
-        >
-          Reset View
-        </button>
-      </div>
+      ) : (
+        <>
+          <div className="mb-4 text-sm text-secondary-600 bg-secondary-50 border border-secondary-200 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="mr-2">💡</span>
+              <strong>Tip:</strong><span className="ml-1">Drag any node to reposition it. Click "Reset Layout" to restore the automatic layout.</span>
+            </div>
+            <button
+              onClick={() => setDimensions({ width: 1200, height: 600 })}
+              className="px-3 py-1 text-xs font-medium bg-white border border-secondary-300 rounded hover:bg-secondary-50 transition-colors"
+            >
+              Reset View
+            </button>
+          </div>
 
-      <div className="border border-secondary-200 rounded-xl overflow-auto bg-slate-50 shadow-inner">
-        <canvas
-          ref={canvasRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="cursor-pointer"
-        />
-      </div>
+          <div className="border border-secondary-200 rounded-xl overflow-auto bg-slate-50 shadow-inner">
+            <canvas
+              ref={canvasRef}
+              width={dimensions.width}
+              height={dimensions.height}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="cursor-pointer"
+            />
+          </div>
 
-      {hoveredNode && hoveredNode !== 'START' && hoveredNode !== 'FINISH' && (
-        <div className="mt-4 p-4 bg-white border border-secondary-200 rounded-xl shadow-lg animate-fade-in-up">
-          {(() => {
-            const node = nodes.find(n => n.id === hoveredNode)
-            if (!node || !node.activity) return null
-            return (
-              <div className="text-sm">
-                <p className="font-semibold text-secondary-900 text-base mb-2 flex items-center">
-                  <span className="bg-primary-100 text-primary-800 text-xs px-2 py-0.5 rounded mr-2">{node.activity.activityId}</span>
-                  {node.activity.name}
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-6 text-xs">
-                  <div><span className="text-secondary-500">Early Start:</span> <span className="font-mono font-medium ml-1">{node.activity.es.toFixed(2)}</span></div>
-                  <div><span className="text-secondary-500">Early Finish:</span> <span className="font-mono font-medium ml-1">{node.activity.ef.toFixed(2)}</span></div>
-                  <div><span className="text-secondary-500">Late Start:</span> <span className="font-mono font-medium ml-1">{node.activity.ls.toFixed(2)}</span></div>
-                  <div><span className="text-secondary-500">Late Finish:</span> <span className="font-mono font-medium ml-1">{node.activity.lf.toFixed(2)}</span></div>
-                  <div><span className="text-secondary-500">Slack:</span> <span className="font-mono font-medium ml-1">{node.activity.slack.toFixed(2)}</span></div>
-                  <div>
-                    <span className="text-secondary-500">Status:</span>
-                    <span className={`font-bold ml-1 ${node.activity.isCritical ? 'text-danger-600' : 'text-success-600'}`}>
-                      {node.activity.isCritical ? 'Critical' : 'Normal'}
-                    </span>
+          {hoveredNode && hoveredNode !== 'START' && hoveredNode !== 'FINISH' && (
+            <div className="mt-4 p-4 bg-white border border-secondary-200 rounded-xl shadow-lg animate-fade-in-up">
+              {(() => {
+                const node = nodes.find(n => n.id === hoveredNode)
+                if (!node || !node.activity) return null
+                return (
+                  <div className="text-sm">
+                    <p className="font-semibold text-secondary-900 text-base mb-2 flex items-center">
+                      <span className="bg-primary-100 text-primary-800 text-xs px-2 py-0.5 rounded mr-2">{node.activity.activityId}</span>
+                      {node.activity.name}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-6 text-xs">
+                      <div><span className="text-secondary-500">Early Start:</span> <span className="font-mono font-medium ml-1">{(node.activity.es || node.activity.ES || 0).toFixed(2)}</span></div>
+                      <div><span className="text-secondary-500">Early Finish:</span> <span className="font-mono font-medium ml-1">{(node.activity.ef || node.activity.EF || 0).toFixed(2)}</span></div>
+                      <div><span className="text-secondary-500">Late Start:</span> <span className="font-mono font-medium ml-1">{(node.activity.ls || node.activity.LS || 0).toFixed(2)}</span></div>
+                      <div><span className="text-secondary-500">Late Finish:</span> <span className="font-mono font-medium ml-1">{(node.activity.lf || node.activity.LF || 0).toFixed(2)}</span></div>
+                      <div><span className="text-secondary-500">Slack:</span> <span className="font-mono font-medium ml-1">{(node.activity.slack || 0).toFixed(2)}</span></div>
+                      <div>
+                        <span className="text-secondary-500">Status:</span>
+                        <span className={`font-bold ml-1 ${node.activity.isCritical ? 'text-danger-600' : 'text-success-600'}`}>
+                          {node.activity.isCritical ? 'Critical' : 'Normal'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )
-          })()}
-        </div>
+                )
+              })()}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

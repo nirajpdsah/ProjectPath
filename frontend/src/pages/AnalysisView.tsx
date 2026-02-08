@@ -1,9 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ArrowLeft, BarChart2, Share2, Activity, Zap, Clock, AlertTriangle, CheckCircle, Download, FileText, FileJson } from 'lucide-react'
+import { ArrowLeft, BarChart2, Share2, Activity, Clock, AlertTriangle, CheckCircle, Download, FileText, FileJson } from 'lucide-react'
 import api from '../services/api'
 import MonitoringDashboard from '../components/MonitoringDashboard'
-import CrashingAnalysis from '../components/CrashingAnalysis'
 import NetworkDiagram from '../components/NetworkDiagram'
 import { useAuth } from '../context/AuthContext'
 import { getGuestActivities, getGuestProject } from '../utils/guestStorage'
@@ -297,7 +296,6 @@ export default function AnalysisView() {
             { id: 'analysis', name: 'Overview', icon: BarChart2 },
             { id: 'network', name: 'Network Diagram', icon: Share2 },
             { id: 'monitoring', name: 'Monitoring', icon: Activity },
-            { id: 'crashing', name: 'Crashing', icon: Zap },
           ].map((tab) => {
             const Icon = tab.icon
             return (
@@ -356,7 +354,7 @@ export default function AnalysisView() {
             {/* Critical Path */}
             <div className="card p-6">
               <h2 className="text-lg font-bold mb-4 text-secondary-900 border-b border-secondary-100 pb-2 flex items-center">
-                <Zap className="w-5 h-5 mr-2 text-warning-500" />
+                <Activity className="w-5 h-5 mr-2 text-warning-500" />
                 Critical Path Sequence
               </h2>
               <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 p-6 rounded-xl overflow-x-auto shadow-inner">
@@ -497,12 +495,6 @@ export default function AnalysisView() {
 
       {activeTab === 'monitoring' && id && (
         <MonitoringDashboard projectId={id} projectMethod={projectMethod} isGuest={!isAuthenticated} analysis={analysis} />
-      )}
-
-      {activeTab === 'crashing' && id && (
-        <div className="card p-6">
-          <CrashingAnalysis projectId={id} isGuest={!isAuthenticated} />
-        </div>
       )}
     </div>
   )
