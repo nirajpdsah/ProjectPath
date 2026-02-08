@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.models import Project, Activity, User
 from app.schemas.schemas import ProjectAnalysisResponse, ProbabilityRequest, ProbabilityResponse, AdhocAnalysisRequest, AdhocProbabilityRequest
 from app.services.pert_cpm import PERTCPMEngine, calculate_probability
+from app.services.crashing_engine import CrashingEngine
 from app.services.pdf_export import generate_pdf_export
 from app.auth import get_current_user
 import json
@@ -123,6 +124,28 @@ async def analyze_adhoc_crashing(request: AdhocAnalysisRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Crashing analysis failed: {str(e)}")
+
+@router.post("/analyze-adhoc/crashing-full")
+async def analyze_adhoc_crashing_full(request: AdhocAnalysisRequest, target_duration: float = None):
+    """Comprehensive crashing analysis with iterative scheme"""
+    activities_data = []
+    for activity in request.activities:
+        activities_data.append({
+            'activityId': activity.activityId,
+            'name': activity.name,
+            'predecessors': activity.predecessors or '',
+            'duration': activity.duration,
+            'cost': activity.cost,
+            'crashTime': activity.crashTime,
+            'crashCost': activity.crashCost
+        })
+
+    try:
+        engine = CrashingEngine(activities_data)
+        result = engine.calculate_crashing_scheme(target_duration)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Comprehensive crashing analysis failed: {str(e)}")
 
 @router.post("/export-adhoc")
 async def export_adhoc_analysis(request: AdhocAnalysisRequest, format: str = "json"):
@@ -557,3 +580,178 @@ async def export_analysis(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.post("/{project_id}/crashing-analysis")
+async def analyze_project_crashing(
+    project_id: str,
+    target_duration: float = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Comprehensive crashing analysis for authenticated project"""
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    activities = db.query(Activity).filter(Activity.projectId == project_id).all()
+    if not activities:
+        raise HTTPException(status_code=400, detail="Project has no activities")
+    
+    # Convert activities to dict format for engine
+    activities_data = []
+    for activity in activities:
+        activity_dict = {
+            'activityId': activity.activityId,
+            'name': activity.name,
+            'predecessors': activity.predecessors or '',
+            'duration': activity.duration,
+            'cost': activity.cost,
+            'crashTime': activity.crashTime,
+            'crashCost': activity.crashCost
+        }
+        activities_data.append(activity_dict)
+    
+    try:
+        engine = CrashingEngine(activities_data)
+        result = engine.calculate_crashing_scheme(target_duration)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Crashing analysis failed: {str(e)}")
+
+
+@router.get("/{project_id}/export/crashing")
+async def export_crashing_analysis(
+    project_id: str,
+    format: str = "json",
+    target_duration: float = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Export comprehensive crashing analysis for a project
+    
+    Args:
+        project_id: The project ID to export
+        format: Export format - 'json' or 'pdf' (default: 'json')
+        target_duration: Optional target duration for optimized crashing
+    """
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.userId == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    activities = db.query(Activity).filter(Activity.projectId == project_id).all()
+    if not activities:
+        raise HTTPException(status_code=400, detail="Project has no activities")
+    
+    # Convert activities to dict format for engine
+    activities_data = []
+    for activity in activities:
+        activity_dict = {
+            'activityId': activity.activityId,
+            'name': activity.name,
+            'predecessors': activity.predecessors or '',
+            'duration': activity.duration,
+            'cost': activity.cost,
+            'crashTime': activity.crashTime,
+            'crashCost': activity.crashCost
+        }
+        activities_data.append(activity_dict)
+    
+    try:
+        # Perform comprehensive crashing analysis
+        engine = CrashingEngine(activities_data)
+        crashing_result = engine.calculate_crashing_scheme(target_duration)
+        
+        # Build export data structure
+        export_data = {
+            "metadata": {
+                "projectId": project.id,
+                "projectName": project.name,
+                "method": "Crashing",  # Set method for PDF generator
+                "analysisType": "Project Crashing",
+                "timeUnit": project.timeUnit,
+                "costUnit": getattr(project, 'costUnit', 'NRs.'),  # Include cost unit
+                "exportDate": datetime.utcnow().isoformat(),
+                "createdAt": project.createdAt.isoformat(),
+                "updatedAt": project.updatedAt.isoformat()
+            },
+            "problem": {
+                "description": "Project Crashing - Time-Cost Tradeoff Analysis",
+                "activities": [
+                    {
+                        "activityId": a.activityId,
+                        "name": a.name,
+                        "predecessors": a.predecessors or "None",
+                        "duration": a.duration if a.duration else 0,
+                        "normalTime": a.duration if a.duration else 0,
+                        "crashTime": a.crashTime if a.crashTime else 0,
+                        "cost": a.cost if a.cost else 0,
+                        "normalCost": a.cost if a.cost else 0,
+                        "crashCost": a.crashCost if a.crashCost else 0,
+                        "crashSlope": ((a.crashCost or 0) - (a.cost or 0)) / ((a.duration or 1) - (a.crashTime or 0)) if a.duration and a.crashTime and a.duration != a.crashTime else 0
+                    }
+                    for a in activities if a.duration is not None
+                ],
+                "objectives": [
+                    "Determine optimal project acceleration scheme",
+                    "Calculate time-cost tradeoff",
+                    "Identify activities to crash",
+                    "Minimize total project cost"
+                ]
+            },
+            "solution": {
+                **crashing_result,
+                # Add legacy fields for network diagram compatibility
+                "projectDuration": crashing_result.get('finalDuration', crashing_result.get('finalAnalysis', {}).get('projectDuration', 0)),
+                "criticalPath": crashing_result.get('finalCriticalPath', []),
+                "activities": crashing_result.get('finalAnalysis', {}).get('activities', []),
+                "totalActivities": len(activities),
+                "criticalActivitiesCount": len([a for a in crashing_result.get('finalAnalysis', {}).get('activities', []) if a.get('isCritical', False)]),
+                "analysis": {
+                    "criticalPathLength": len(crashing_result.get('finalCriticalPath', []))
+                }
+            }
+        }
+        
+        # Return based on format
+        if format.lower() == "pdf":
+            # Generate PDF
+            try:
+                pdf_buffer = generate_pdf_export(export_data)
+            except Exception as pdf_error:
+                print(f"PDF Generation Error: {str(pdf_error)}")
+                print(f"Error type: {type(pdf_error)}")
+                import traceback
+                traceback.print_exc()
+                raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(pdf_error)}")
+            
+            filename = f"crashing_analysis_{project.name.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
+            
+            return StreamingResponse(
+                pdf_buffer,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"attachment; filename={filename}"
+                }
+            )
+        else:
+            # Return as JSON (default)
+            filename = f"crashing_analysis_{project.name.replace(' ', '_')}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            return JSONResponse(
+                content=export_data,
+                headers={
+                    "Content-Disposition": f"attachment; filename={filename}"
+                }
+            )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Crashing export failed: {str(e)}")

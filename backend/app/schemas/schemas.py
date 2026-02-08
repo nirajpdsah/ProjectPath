@@ -60,7 +60,7 @@ class Activity(ActivityBase):
 
 class ProjectBase(BaseModel):
     name: str
-    method: str  # CPM or PERT
+    method: str  # CPM, PERT, or Crashing
     timeUnit: str
 
 class ProjectCreate(ProjectBase):

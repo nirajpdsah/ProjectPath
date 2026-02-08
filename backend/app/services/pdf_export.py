@@ -104,8 +104,8 @@ class PDFExporter:
         story.extend(self._create_problem_section(export_data['problem'], export_data['metadata']))
         story.append(PageBreak())
         
-        # Network Diagram
-        story.extend(self._create_network_diagram_section(export_data['problem'], export_data['solution']))
+        # Network Diagram (use final state for Crashing)
+        story.extend(self._create_network_diagram_section(export_data['problem'], export_data['solution'], export_data['metadata']))
         story.append(PageBreak())
         
         # Solution Analysis
@@ -214,11 +214,21 @@ class PDFExporter:
         
         # Overview
         elements.append(Paragraph("1.1 Project Overview", self.styles['SubSection']))
-        overview_text = f"""
-        This project analysis uses the <b>{metadata['method']}</b> method to schedule and optimize 
-        project activities. The analysis determines the critical path, calculates activity slack times,
-        and provides insights for project management decisions. Time measurements are in <b>{metadata['timeUnit']}</b>.
-        """
+        
+        # Different overview based on method
+        if metadata.get('method') == 'Crashing':
+            overview_text = f"""
+            This project analysis uses <b>Project Crashing</b> methodology to determine the optimal 
+            time-cost tradeoff for accelerating project completion. The analysis identifies which activities 
+            should be crashed (expedited) to minimize additional costs while reducing project duration.
+            Time measurements are in <b>{metadata['timeUnit']}</b>.
+            """
+        else:
+            overview_text = f"""
+            This project analysis uses the <b>{metadata['method']}</b> method to schedule and optimize 
+            project activities. The analysis determines the critical path, calculates activity slack times,
+            and provides insights for project management decisions. Time measurements are in <b>{metadata['timeUnit']}</b>.
+            """
         elements.append(Paragraph(overview_text, self.styles['CustomBody']))
         elements.append(Spacer(1, 0.1*inch))
         
@@ -227,7 +237,23 @@ class PDFExporter:
         elements.append(Spacer(1, 0.1*inch))
         
         # Activities table
-        if metadata['method'] == 'CPM':
+        if metadata.get('method') == 'Crashing':
+            headers = [['ID', 'Name', 'Predecessors', 'Normal Time', 'Crash Time', 'Normal Cost', 'Crash Cost', 'Slope']]
+            data = headers + [
+                [
+                    activity['activityId'],
+                    activity['name'][:25],
+                    activity['predecessors'] if activity['predecessors'] != 'None' else '-',
+                    f"{activity.get('normalTime', activity.get('duration', 0)):.1f}",
+                    f"{activity.get('crashTime', 0):.1f}",
+                    f"{metadata.get('costUnit', 'NRs.')}{activity.get('normalCost', activity.get('cost', 0)):.0f}",
+                    f"{metadata.get('costUnit', 'NRs.')}{activity.get('crashCost', 0):.0f}",
+                    f"{metadata.get('costUnit', 'NRs.')}{activity.get('crashSlope', 0):.0f}"
+                ]
+                for activity in problem['activities']
+            ]
+            col_widths = [0.5*inch, 1.5*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.7*inch]
+        elif metadata['method'] == 'CPM':
             headers = [['ID', 'Name', 'Predecessors', 'Duration', 'Cost', 'Crash Time', 'Crash Cost']]
             data = headers + [
                 [
@@ -297,7 +323,7 @@ class PDFExporter:
         
         return elements
     
-    def _create_network_diagram_section(self, problem: Dict, solution: Dict) -> List:
+    def _create_network_diagram_section(self, problem: Dict, solution: Dict, metadata: Dict) -> List:
         """Create network diagram section"""
         elements = []
         
@@ -307,32 +333,64 @@ class PDFExporter:
         
         # Description
         elements.append(Paragraph("2.1 Activity-on-Node (AON) Diagram", self.styles['SubSection']))
-        description = """
-        The network diagram below visualizes the project structure, showing the relationships 
-        between activities and the critical path. Critical activities are highlighted in red, 
-        while non-critical activities are shown in blue. Each node displays the activity ID, 
-        duration, and timing information (ES, EF, LS, LF).
-        """
+        
+        if metadata.get('method') == 'Crashing':
+            description = """
+            The network diagram below visualizes the final project structure after applying the crashing scheme.
+            Critical activities are highlighted in red, while non-critical activities are shown in blue. 
+            Each node displays the activity ID, duration (after crashing), and timing information (ES, EF, LS, LF).
+            """
+        else:
+            description = """
+            The network diagram below visualizes the project structure, showing the relationships 
+            between activities and the critical path. Critical activities are highlighted in red, 
+            while non-critical activities are shown in blue. Each node displays the activity ID, 
+            duration, and timing information (ES, EF, LS, LF).
+            """
         elements.append(Paragraph(description, self.styles['CustomBody']))
         elements.append(Spacer(1, 0.15*inch))
         
         try:
             # Merge problem activities with solution data to get complete information
             merged_activities = []
+            
+            # Ensure solution has activities
+            solution_activities = solution.get('activities', [])
+            
             for prob_act in problem['activities']:
                 # Find matching activity in solution
-                sol_act = next((a for a in solution['activities'] if a['activityId'] == prob_act['activityId']), None)
+                sol_act = next((a for a in solution_activities if a.get('activityId') == prob_act['activityId']), None)
                 if sol_act:
-                    # Merge both dictionaries
+                    # Merge both dictionaries, ensuring all required fields
                     merged = {**prob_act, **sol_act}
+                    # Ensure critical fields exist
+                    if 'ES' not in merged:
+                        merged['ES'] = 0
+                    if 'EF' not in merged:
+                        merged['EF'] = merged.get('duration', 0)
+                    if 'LS' not in merged:
+                        merged['LS'] = 0
+                    if 'LF' not in merged:
+                        merged['LF'] = merged.get('duration', 0)
+                    if 'slack' not in merged:
+                        merged['slack'] = 0
+                    if 'isCritical' not in merged:
+                        merged['isCritical'] = False
                     merged_activities.append(merged)
                 else:
+                    # Use problem activity with default calculated fields
+                    prob_act['ES'] = 0
+                    prob_act['EF'] = prob_act.get('duration', 0)
+                    prob_act['LS'] = 0
+                    prob_act['LF'] = prob_act.get('duration', 0)
+                    prob_act['slack'] = 0
+                    prob_act['isCritical'] = False
                     merged_activities.append(prob_act)
             
             # Generate network diagram with complete data
             diagram_buffer = generate_network_diagram(
                 merged_activities,
-                solution['criticalPath'],
+                solution.get('criticalPath', []),
                 diagram_type='aon'
             )
             
@@ -358,6 +416,9 @@ class PDFExporter:
             
         except Exception as e:
             # If diagram generation fails, show error message
+            print(f"Network diagram generation failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
             error_text = Paragraph(
                 f"<i>Network diagram could not be generated: {str(e)}</i>",
                 ParagraphStyle(
@@ -380,7 +441,11 @@ class PDFExporter:
         elements.append(Paragraph("3. SOLUTION ANALYSIS", self.styles['SectionHeader']))
         elements.append(Spacer(1, 0.15*inch))
         
-        # Project Summary
+        # Handle Crashing method differently
+        if metadata.get('method') == 'Crashing':
+            return self._create_crashing_solution_section(solution, metadata)
+        
+        # Project Summary for CPM/PERT
         elements.append(Paragraph("3.1 Project Summary", self.styles['SubSection']))
         
         summary_data = [
@@ -531,8 +596,8 @@ class PDFExporter:
                         opt['activityId'],
                         f"{opt['normalTime']:.1f}",
                         f"{opt['crashTime']:.1f}",
-                        f"${opt['costIncrease']:.0f}",
-                        f"${opt['costSlope']:.0f}"
+                        f"{metadata.get('costUnit', 'NRs.')}{opt['costIncrease']:.0f}",
+                        f"{metadata.get('costUnit', 'NRs.')}{opt['costSlope']:.0f}"
                     ]
                     for opt in solution['crashing']['options'][:10]  # Limit to 10 options
                 ]
@@ -552,6 +617,155 @@ class PDFExporter:
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ]))
                 elements.append(crash_table)
+        
+        return elements
+
+
+    def _create_crashing_solution_section(self, solution: Dict, metadata: Dict) -> List:
+        """Create solution section specifically for crashing analysis"""
+        elements = []
+        
+        # Crashing Summary
+        elements.append(Paragraph("3.1 Crashing Analysis Summary", self.styles['SubSection']))
+        
+        initial_duration = solution.get('initialDuration', 0)
+        final_duration = solution.get('finalDuration', initial_duration)
+        time_saved = solution.get('totalTimeSaved', 0)
+        cost_increase = solution.get('totalCostIncrease', 0)
+        
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Initial Project Duration', f"{str(initial_duration)} {metadata['timeUnit']}"],
+            ['Final Project Duration', f"{str(final_duration)} {metadata['timeUnit']}"],
+            ['Total Time Saved', f"{str(time_saved)} {metadata['timeUnit']}"],
+            ['Total Cost Increase', f"{metadata.get('costUnit', 'NRs.')}{cost_increase:.2f}"],
+            ['Crashing Iterations', str(len(solution.get('crashingSteps', [])))],
+            ['Initial Critical Path', ' → '.join(solution.get('initialCriticalPath', [])[:6])],
+            ['Final Critical Path', ' → '.join(solution.get('finalCriticalPath', [])[:6])],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            
+            ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#f3f4f6')),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1f2937')),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 1), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5db')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Crashing Iterations
+        if solution.get('crashingSteps'):
+            elements.append(Paragraph("3.2 Crashing Scheme", self.styles['SubSection']))
+            elements.append(Paragraph(
+                "The following table shows each iteration of the crashing process, indicating which "
+                "activity was crashed, the cost increase, and the resulting project duration.",
+                self.styles['CustomBody']
+            ))
+            elements.append(Spacer(1, 0.1*inch))
+            
+            iteration_headers = [['Step', 'Activity', 'Amount', 'Cost Increase', 'New Duration', 'Time Saved']]
+            iteration_data = iteration_headers + [
+                [
+                    str(step['step']),
+                    step.get('activityCrashed', 'N/A'),
+                    f"{step.get('amountCrashed', 0)}",
+                    f"{metadata.get('costUnit', 'NRs.')}{step.get('costIncrease', 0):.2f}",
+                    f"{step.get('newDuration', 0)}",
+                    f"{step.get('timeSaved', 0)}",
+                ]
+                for step in solution['crashingSteps'][:20]  # Limit to 20 steps
+            ]
+            
+            iteration_table = Table(iteration_data, colWidths=[0.6*inch, 1.2*inch, 0.9*inch, 1.3*inch, 1.3*inch, 1.2*inch])
+            iteration_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0fdf4')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(iteration_table)
+            elements.append(Spacer(1, 0.2*inch))
+        
+        # Show final activity states
+        if solution.get('finalAnalysis', {}).get('activities'):
+            elements.append(PageBreak())
+            elements.append(Paragraph("3.3 Final Activity Schedule", self.styles['SubSection']))
+            elements.append(Paragraph(
+                "Activity timing and status after applying the crashing scheme:",
+                self.styles['CustomBody']
+            ))
+            elements.append(Spacer(1, 0.1*inch))
+            
+            try:
+                activities = solution['finalAnalysis']['activities'][:20]  # Limit to 20
+                final_headers = [['ID', 'Duration', 'ES', 'EF', 'LS', 'LF', 'Slack', 'Critical']]
+                final_data = final_headers + [
+                    [
+                        str(act.get('activityId', 'N/A')),
+                        f"{float(act.get('duration', 0)):.1f}",
+                        f"{float(act.get('ES', 0)):.1f}",
+                        f"{float(act.get('EF', 0)):.1f}",
+                        f"{float(act.get('LS', 0)):.1f}",
+                        f"{float(act.get('LF', 0)):.1f}",
+                        f"{float(act.get('slack', 0)):.1f}",
+                        'Yes' if act.get('isCritical', False) else 'No'
+                    ]
+                    for act in activities
+                ]
+                
+                final_table = Table(final_data, colWidths=[0.5*inch, 0.9*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.8*inch, 0.7*inch])
+                final_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 7),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0fdf4')]),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]))
+                elements.append(final_table)
+            except Exception as e:
+                print(f"Error creating final activity schedule table: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                error_text = Paragraph(
+                    f"<i>Final activity schedule table could not be generated: {str(e)}</i>",
+                    ParagraphStyle(
+                        'Error',
+                        parent=self.styles['Normal'],
+                        fontSize=10,
+                        textColor=colors.HexColor('#DC2626'),
+                        alignment=TA_CENTER
+                    )
+                )
+                elements.append(error_text)
         
         return elements
 

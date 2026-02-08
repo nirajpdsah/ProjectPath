@@ -28,11 +28,16 @@ class PERTCPMEngine:
         for activity_id, activity in self.activities.items():
             predecessors = activity.get('predecessors', '')
             if predecessors:
-                preds = [p.strip() for p in predecessors.split(',')]
+                # Handle string predecessors
+                if not isinstance(predecessors, str):
+                    predecessors = str(predecessors).strip()
+                    
+                preds = [p.strip() for p in predecessors.split(',') if p.strip()]
                 for pred in preds:
-                    if pred:
-                        self.graph[pred].append(activity_id)
-                        self.reverse_graph[activity_id].append(pred)
+                    if pred not in self.activities:
+                        raise ValueError(f"Activity '{activity_id}' references undefined predecessor '{pred}'")
+                    self.graph[pred].append(activity_id)
+                    self.reverse_graph[activity_id].append(pred)
     
     def validate_dag(self) -> bool:
         """Validate that the graph is a DAG (no cycles)"""
@@ -63,17 +68,24 @@ class PERTCPMEngine:
         """Calculate or get duration for an activity"""
         activity = self.activities[activity_id]
         
-        if 'duration' in activity and activity['duration']:
-            return float(activity['duration'])
+        if 'duration' in activity and activity['duration'] is not None:
+            try:
+                return float(activity['duration'])
+            except (ValueError, TypeError):
+                raise ValueError(f"Activity '{activity_id}' has invalid duration: {activity['duration']}")
         
         # PERT formula: (a + 4m + b) / 6
-        a = activity.get('optimistic', 0)
-        m = activity.get('mostLikely', 0)
-        b = activity.get('pessimistic', 0)
+        a = activity.get('optimistic')
+        m = activity.get('mostLikely')
+        b = activity.get('pessimistic')
         
-        if a and m and b:
-            return (a + 4*m + b) / 6
-        return 0
+        if a is not None and m is not None and b is not None:
+            try:
+                return (float(a) + 4*float(m) + float(b)) / 6
+            except (ValueError, TypeError):
+                raise ValueError(f"Activity '{activity_id}' has invalid PERT values (optimistic, mostLikely, pessimistic)")
+        
+        raise ValueError(f"Activity '{activity_id}' has no duration specified (either 'duration' for CPM or 'optimistic', 'mostLikely', 'pessimistic' for PERT)")
     
     def get_variance(self, activity_id: str) -> float:
         """Calculate variance for PERT analysis"""
@@ -146,11 +158,27 @@ class PERTCPMEngine:
     
     def analyze(self) -> Dict:
         """Perform complete analysis"""
+        # Validate DAG (no cycles)
         if not self.validate_dag():
-            raise ValueError("Graph contains cycles")
+            raise ValueError("Graph contains cycles - check your activity predecessors for circular dependencies")
+        
+        # Check for connectivity
+        start_nodes = [node for node in self.activities if len(self.reverse_graph[node]) == 0]
+        end_nodes = [node for node in self.activities if len(self.graph[node]) == 0]
+        
+        if not start_nodes:
+            raise ValueError("No start activity found - ensure at least one activity has no predecessors")
+        if not end_nodes:
+            raise ValueError("No end activity found - ensure at least one activity has no successors (check for cycles)")
+        if len(start_nodes) > 1 or len(end_nodes) > 1:
+            # This is technically allowed, but unusual. Add implicit start/end if needed
+            pass
         
         # Forward pass
         es_ef = self.forward_pass()
+        if not es_ef:
+            raise ValueError("Forward pass failed - no activities processed")
+            
         project_duration = max(ef['EF'] for ef in es_ef.values()) if es_ef else 0
         
         # Backward pass
@@ -178,8 +206,8 @@ class PERTCPMEngine:
         # Find critical path
         critical_path = self.find_critical_path(critical_activities)
         
-        # Calculate project variance
-        project_variance = sum(self.get_variance(act) for act in self.activities)
+        # Calculate project variance (only for critical path activities)
+        project_variance = sum(self.get_variance(act) for act in critical_activities)
         
         return {
             'projectDuration': project_duration,

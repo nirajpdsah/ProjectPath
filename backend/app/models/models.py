@@ -20,7 +20,7 @@ class Project(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
-    method = Column(String, nullable=False)  # CPM or PERT
+    method = Column(String, nullable=False)  # CPM, PERT, or Crashing
     timeUnit = Column(String, nullable=False)  # days, weeks, months
     userId = Column(String, ForeignKey("users.id"), nullable=False)
     createdAt = Column(DateTime, default=datetime.utcnow)
